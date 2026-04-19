@@ -1,10 +1,12 @@
 from flask import Flask, render_template, jsonify
 import json
+import os
 
 app = Flask(__name__)
 
 def carregar_dados():
-    with open("data/musculos.json", "r", encoding="utf-8") as arquivo:
+    caminho = os.path.join("data", "musculos.json")
+    with open(caminho, "r", encoding="utf-8") as arquivo:
         return json.load(arquivo)
 
 @app.route("/")
