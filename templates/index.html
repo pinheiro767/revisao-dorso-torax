@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="theme-color" content="#0b1f33">
+  <title>UEM • Revisão Dorso e Tórax</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/css/style.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-grid">
+        <div class="brand">
+          <small>Universidade Estadual de Maringá</small>
+          <h1>Revisão Dorso e Tórax</h1>
+          <p>Curso de Medicina • Revisão interativa com imagens, GIFs, respostas protegidas, PDF e modo 3D</p>
+        </div>
+
+        <div class="top-actions">
+          <button class="btn btn-primary" id="installBtn" type="button">Baixar App</button>
+          <button class="btn btn-secondary" type="button" onclick="rolarPara('secao-dorso')">Ir para Dorso</button>
+          <button class="btn btn-secondary" type="button" onclick="rolarPara('secao-torax')">Ir para Tórax</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-card">
+        <h2>Atlas interativo para revisão prática</h2>
+        <p>
+          Toque em cada estrutura para abrir a imagem ou o GIF somente quando quiser. As respostas
+          de ação, fixação proximal e inserção ficam protegidas no modo professor com a senha
+          <span class="kbd">pinheiro</span>.
+        </p>
+
+        <div class="hero-badges">
+          <span class="badge">PWA instalável</span>
+          <span class="badge">PDF por seção</span>
+          <span class="badge">Som no clique</span>
+          <span class="badge">Imagem e GIF ocultos</span>
+          <span class="badge">Modo 3D</span>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <h3>Como usar</h3>
+        <p>1. Selecione a seção desejada.</p>
+        <p>2. Clique na estrutura para abrir recursos visuais.</p>
+        <p>3. Digite a senha do professor para liberar as respostas.</p>
+        <p>4. Gere PDF da seção quando quiser.</p>
+        <p>5. No final, teste a área 3D com uma foto do aparelho.</p>
+      </aside>
+    </section>
+
+    <main class="grid-main">
+      <aside class="sidebar">
+        <section class="section-card">
+          <h3>Pesquisa</h3>
+
+          <div class="search-box">
+            <input
+              type="text"
+              id="searchInput"
+              class="input"
+              placeholder="Pesquisar por nome ou número..."
+              oninput="filtrarEstruturas()"
+            >
+          </div>
+
+          <div class="filter-list">
+            <button class="filter-btn active" type="button" onclick="filtrarPorSecao('todas', this)">Todas</button>
+            <button class="filter-btn" type="button" onclick="filtrarPorSecao('dorso', this)">Somente Dorso</button>
+            <button class="filter-btn" type="button" onclick="filtrarPorSecao('torax', this)">Somente Tórax</button>
+          </div>
+        </section>
+
+        <section class="prof-card">
+          <h3>Modo Professor</h3>
+          <p>
+            Digite a senha para liberar ação, fixação proximal e inserção.
+          </p>
+
+          <div class="prof-row">
+            <input type="password" id="senhaProfessor" placeholder="Digite a senha">
+            <button class="btn btn-teal" type="button" onclick="ativarModoProfessor()">Liberar respostas</button>
+            <button class="btn btn-danger" type="button" onclick="desativarModoProfessor()">Bloquear</button>
+          </div>
+
+          <div class="prof-status" id="profStatus">Modo professor bloqueado.</div>
+        </section>
+
+        <section class="section-card">
+          <h3>PDF por seção</h3>
+          <div class="pdf-actions">
+            <button class="btn btn-secondary" type="button" onclick="gerarPDF('secao-dorso','Revisao_Dorso.pdf')">Gerar PDF Dorso</button>
+            <button class="btn btn-secondary" type="button" onclick="gerarPDF('secao-torax','Revisao_Torax.pdf')">Gerar PDF Tórax</button>
+          </div>
+          <p class="install-tip">
+            O PDF captura apenas a seção escolhida.
+          </p>
+        </section>
+      </aside>
+
+      <section class="content-area">
+        <div class="content-header">
+          <div>
+            <h2>Estruturas anatômicas</h2>
+            <p>Clique para abrir imagens, GIFs e respostas protegidas.</p>
+          </div>
+        </div>
+
+        <section class="section-anchor" id="secao-dorso">
+          <div class="content-header">
+            <div>
+              <h2>Dorso</h2>
+              <p>Extrínsecos superficiais, intermediários e intrínsecos do dorso</p>
+            </div>
+          </div>
+
+          <div class="structure-grid" id="lista-dorso"></div>
+        </section>
+
+        <section class="section-anchor" id="secao-torax">
+          <div class="content-header">
+            <div>
+              <h2>Tórax</h2>
+              <p>Toracoapendiculares e músculos verdadeiros do tórax</p>
+            </div>
+          </div>
+
+          <div class="structure-grid" id="lista-torax"></div>
+        </section>
+
+        <section class="viewer-grid">
+          <div class="viewer-card">
+            <h3>Visualização ampliada</h3>
+            <div class="viewer-empty" id="viewerEmpty">
+              Clique em uma estrutura para exibir a imagem ou o GIF ampliado aqui.
+            </div>
+            <img id="viewerImage" class="viewer-image hidden" alt="Imagem ampliada da estrutura">
+            <img id="viewerGif" class="viewer-gif hidden" alt="GIF ampliado da estrutura">
+          </div>
+
+          <div class="media-card">
+            <h3>Resumo da estrutura selecionada</h3>
+            <div class="viewer-empty" id="resumoEstrutura">
+              Nenhuma estrutura selecionada ainda.
+            </div>
+          </div>
+        </section>
+
+        <section class="three-card">
+          <h3>Modo 3D experimental</h3>
+          <p>
+            O aluno pode selecionar uma foto do aparelho ou tirar uma foto no celular. A imagem será
+            usada como textura em um modelo 3D simples para exploração visual.
+          </p>
+
+          <div class="capture-row">
+            <input type="file" id="foto3d" accept="image/*" capture="environment">
+            <button class="btn btn-primary" type="button" onclick="aplicarFotoNo3D()">Aplicar foto no 3D</button>
+          </div>
+
+          <img id="previewFoto3d" class="capture-preview" alt="Pré-visualização da imagem enviada">
+          <canvas id="canvas3d"></canvas>
+        </section>
+
+        <footer class="footer-card">
+          <h3>Identificação institucional</h3>
+          <p>
+            Universidade Estadual de Maringá • Curso de Medicina
+          </p>
+          <div class="footer-sign">
+            Prof. Dra. Cláudia Pinheiro • Responsável tecnológico
+          </div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/three3d.js"></script>
+</body>
+</html>
