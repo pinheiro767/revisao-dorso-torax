@@ -43,7 +43,7 @@ function iniciarCena3D() {
   luzRecorte.position.set(-4, 2, -3);
   cena3D.add(luzRecorte);
 
-  const geometria = new THREE.RoundedBoxGeometry(2.2, 2.8, 0.18, 8, 0.08);
+  const geometria = new THREE.BoxGeometry(2.2, 2.8, 0.18);
   const material = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     roughness: 0.65,
