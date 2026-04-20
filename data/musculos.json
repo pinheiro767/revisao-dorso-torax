@@ -394,5 +394,38 @@
     "insercao": "Continuidade do espaço intercostal.",
     "imagem": "images/61.png",
     "gif": "gifs/61.gif"
-  }
+  },
+{
+"id": 62,
+"secao": "torax",
+"categoria": "Músculos verdadeiros do tórax",
+"nome": "Transverso do tórax",
+"acao": "Depressão das cartilagens costais auxiliando na expiração.",
+"fixacao_proximal": "Face posterior do esterno e processo xifoide.",
+"insercao": "Faces internas das cartilagens costais 2 a 6.",
+"imagem": "images/62.png",
+"gif": "gifs/62.gif"
+},
+{
+"id": 63,
+"secao": "torax",
+"categoria": "Músculos verdadeiros do tórax",
+"nome": "Subcostais",
+"acao": "Depressão das costelas auxiliando na expiração.",
+"fixacao_proximal": "Face interna das costelas inferiores próximas ao ângulo.",
+"insercao": "Face interna da segunda ou terceira costela abaixo.",
+"imagem": "images/63.png",
+"gif": "gifs/63.gif"
+},
+{
+"id": 64,
+"secao": "torax",
+"categoria": "Diafragma",
+"nome": "Diafragma",
+"acao": "Principal músculo da inspiração, aumentando o volume da cavidade torácica.",
+"fixacao_proximal": "Processo xifoide, cartilagens costais 7 a 12 e corpos vertebrais lombares (pilares do diafragma).",
+"insercao": "Centro tendíneo do diafragma.",
+"imagem": "images/64.png",
+"gif": "gifs/64.gif"
+}
 ]
