@@ -2,10 +2,12 @@ from flask import Flask, render_template, jsonify
 import json
 import os
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 app = Flask(__name__)
 
 def carregar_dados():
-    caminho = os.path.join("data", "musculos.json")
+    caminho = os.path.join(BASE_DIR, "data", "musculos.json")
     with open(caminho, "r", encoding="utf-8") as arquivo:
         return json.load(arquivo)
 
@@ -18,4 +20,5 @@ def api_musculos():
     return jsonify(carregar_dados())
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
