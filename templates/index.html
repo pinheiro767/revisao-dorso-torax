@@ -92,33 +92,15 @@
           </div>
         </div>
 
-        <div class="cards-grid two">
-          <section class="panel-card">
-            <h3>Pesquisa</h3>
-            <input
-              type="text"
-              id="searchInput"
-              class="input"
-              placeholder="Pesquisar por nome ou número..."
-              oninput="filtrarEstruturas()"
-            >
-          </section>
-
-          <section class="panel-card">
-            <h3>Visualização ampliada</h3>
-            <div class="viewer-empty" id="viewerEmpty">
-              Clique em uma estrutura para abrir imagem ou GIF aqui.
-            </div>
-            <img id="viewerImage" class="viewer-image hidden" alt="Imagem ampliada">
-            <img id="viewerGif" class="viewer-gif hidden" alt="GIF ampliado">
-          </section>
-        </div>
-
         <section class="panel-card">
-          <h3>Resumo da estrutura selecionada</h3>
-          <div class="viewer-empty" id="resumoEstrutura">
-            Nenhuma estrutura selecionada ainda.
-          </div>
+          <h3>Pesquisa</h3>
+          <input
+            type="text"
+            id="searchInput"
+            class="input"
+            placeholder="Pesquisar por nome ou número..."
+            oninput="filtrarEstruturas()"
+          >
         </section>
       </section>
 
@@ -178,6 +160,22 @@
           <img id="previewFoto3d" class="capture-preview" alt="Pré-visualização da foto">
           <canvas id="canvas3d"></canvas>
         </section>
+      </section>
+
+      <section class="panel-card">
+        <h3>Visualização ampliada</h3>
+        <div class="viewer-empty" id="viewerEmpty">
+          Clique em uma estrutura para abrir imagem ou GIF aqui.
+        </div>
+        <img id="viewerImage" class="viewer-image hidden" alt="Imagem ampliada">
+        <img id="viewerGif" class="viewer-gif hidden" alt="GIF ampliado">
+      </section>
+
+      <section class="panel-card">
+        <h3>Resumo da estrutura selecionada</h3>
+        <div class="viewer-empty" id="resumoEstrutura">
+          Nenhuma estrutura selecionada ainda.
+        </div>
       </section>
 
       <footer class="footer-card">
