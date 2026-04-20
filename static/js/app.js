@@ -475,3 +475,14 @@ function escapeHtml(texto) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      await navigator.serviceWorker.register("/sw.js");
+      console.log("Service Worker registrado com sucesso.");
+    } catch (erro) {
+      console.error("Erro ao registrar Service Worker:", erro);
+    }
+  });
+}
