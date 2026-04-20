@@ -1,399 +1,290 @@
 let estruturas = [];
-let filtroSecaoAtual = "todas";
+let secaoAtual = "todas";
 let modoProfessor = false;
-let deferredPrompt = null;
-let clickAudio = null;
-
-document.addEventListener("DOMContentLoaded", async () => {
-  prepararAudio();
-  configurarInstalacaoPWA();
-  registrarServiceWorker();
-  await carregarEstruturas();
-});
-
-function prepararAudio() {
-  clickAudio = new Audio("/static/sounds/click.mp3");
-  clickAudio.volume = 0.25;
-}
-
-function tocarClique() {
-  if (!clickAudio) return;
-  try {
-    clickAudio.currentTime = 0;
-    clickAudio.play();
-  } catch (e) {
-    console.warn("Não foi possível tocar o áudio de clique.", e);
-  }
-}
 
 async function carregarEstruturas() {
   try {
     const resposta = await fetch("/api/musculos");
     estruturas = await resposta.json();
 
-    renderizarEstruturas();
-    mostrarToast("Estruturas carregadas com sucesso.");
+    renderizarSecao("dorso");
+    renderizarSecao("torax");
+    aplicarTemaSalvo();
   } catch (erro) {
-    console.error(erro);
-    mostrarToast("Erro ao carregar as estruturas.");
+    console.error("Erro ao carregar estruturas:", erro);
+    mostrarToast("Erro ao carregar os músculos.");
   }
 }
 
-function renderizarEstruturas() {
-  const listaDorso = document.getElementById("lista-dorso");
-  const listaTorax = document.getElementById("lista-torax");
+function renderizarSecao(secao) {
+  const tabsContainer = document.getElementById(`tabs-${secao}`);
+  const panelsContainer = document.getElementById(`lista-${secao}`);
 
-  listaDorso.innerHTML = "";
-  listaTorax.innerHTML = "";
+  if (!tabsContainer || !panelsContainer) return;
 
-  const termoBusca = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
+  const termo = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
 
-  const filtradas = estruturas.filter((item) => {
-    const bateSecao = filtroSecaoAtual === "todas" || item.secao === filtroSecaoAtual;
-    const textoBase = `${item.id} ${item.nome} ${item.categoria || ""}`.toLowerCase();
-    const bateBusca = !termoBusca || textoBase.includes(termoBusca);
-    return bateSecao && bateBusca;
+  const itens = estruturas.filter(e => {
+    const mesmaSecao = e.secao === secao;
+    const bateBusca =
+      !termo ||
+      String(e.id).includes(termo) ||
+      (e.nome || "").toLowerCase().includes(termo) ||
+      (e.categoria || "").toLowerCase().includes(termo);
+
+    if (secaoAtual === "todas") return mesmaSecao && bateBusca;
+    return mesmaSecao && bateBusca && e.secao === secaoAtual;
   });
 
-  filtradas.forEach((item) => {
-    const card = criarCardEstrutura(item);
+  tabsContainer.innerHTML = "";
+  panelsContainer.innerHTML = "";
 
-    if (item.secao === "dorso") {
-      listaDorso.appendChild(card);
-    } else if (item.secao === "torax") {
-      listaTorax.appendChild(card);
-    }
-  });
-
-  atualizarVisibilidadeSecoes();
-}
-
-function criarCardEstrutura(item) {
-  const card = document.createElement("article");
-  card.className = "structure-card";
-  card.dataset.secao = item.secao;
-  card.dataset.id = item.id;
-  card.dataset.nome = item.nome.toLowerCase();
-
-  const respostaHtml = modoProfessor
-    ? `
-      <div class="answer-row">
-        <span class="answer-label">Ação</span>
-        <div class="answer-value">${escaparHtml(item.acao || "Não preenchido.")}</div>
-      </div>
-      <div class="answer-row">
-        <span class="answer-label">Fixação proximal</span>
-        <div class="answer-value">${escaparHtml(item.fixacao_proximal || "Não preenchido.")}</div>
-      </div>
-      <div class="answer-row">
-        <span class="answer-label">Inserção</span>
-        <div class="answer-value">${escaparHtml(item.insercao || "Não preenchido.")}</div>
-      </div>
-    `
-    : `<div class="locked">Conteúdo protegido. Digite a senha do professor para liberar.</div>`;
-
-  card.innerHTML = `
-    <div class="structure-top">
-      <div class="structure-id">${item.id}</div>
-      <div class="structure-title">
-        <h4>${escaparHtml(item.nome)}</h4>
-        <span>${escaparHtml(item.categoria || formatarSecao(item.secao))}</span>
-      </div>
-    </div>
-
-    <div class="structure-actions">
-      <button class="mini-btn" type="button" onclick="alternarImagem(${item.id})">Abrir imagem</button>
-      <button class="mini-btn" type="button" onclick="alternarGif(${item.id})">Abrir GIF</button>
-      <button class="mini-btn" type="button" onclick="mostrarResumo(${item.id})">Resumo</button>
-      <button class="mini-btn" type="button" onclick="alternarResposta(${item.id})">Resposta</button>
-    </div>
-
-    <div class="media-box" id="imagem-box-${item.id}">
-      ${item.imagem ? `<img src="/static/${item.imagem}" alt="Imagem de ${escaparAtributo(item.nome)}">` : `<div class="locked">Sem imagem cadastrada.</div>`}
-    </div>
-
-    <div class="gif-box" id="gif-box-${item.id}">
-      ${item.gif ? `<img src="/static/${item.gif}" alt="GIF de ${escaparAtributo(item.nome)}">` : `<div class="locked">Sem GIF cadastrado.</div>`}
-    </div>
-
-    <div class="answer-box" id="resposta-box-${item.id}">
-      ${respostaHtml}
-    </div>
-  `;
-
-  return card;
-}
-
-function alternarImagem(id) {
-  tocarClique();
-  fecharBoxIrma("imagem", id);
-  const box = document.getElementById(`imagem-box-${id}`);
-  if (!box) return;
-
-  box.classList.toggle("show");
-  if (box.classList.contains("show")) {
-    const item = estruturas.find((e) => e.id === id);
-    atualizarViewer("imagem", item);
-  }
-}
-
-function alternarGif(id) {
-  tocarClique();
-  fecharBoxIrma("gif", id);
-  const box = document.getElementById(`gif-box-${id}`);
-  if (!box) return;
-
-  box.classList.toggle("show");
-  if (box.classList.contains("show")) {
-    const item = estruturas.find((e) => e.id === id);
-    atualizarViewer("gif", item);
-  }
-}
-
-function alternarResposta(id) {
-  tocarClique();
-  const box = document.getElementById(`resposta-box-${id}`);
-  if (!box) return;
-
-  if (!modoProfessor) {
-    mostrarToast("Resposta bloqueada. Ative o modo professor.");
-    box.classList.add("show");
+  if (!itens.length) {
+    panelsContainer.innerHTML = `<div class="viewer-empty">Nenhuma estrutura encontrada nesta seção.</div>`;
     return;
   }
 
-  box.classList.toggle("show");
-}
+  itens.forEach((item, index) => {
+    const tab = document.createElement("button");
+    tab.className = `muscle-tab ${index === 0 ? "active" : ""}`;
+    tab.type = "button";
+    tab.textContent = `${item.id}. ${item.nome}`;
+    tab.onclick = () => ativarAba(secao, item.id);
+    tabsContainer.appendChild(tab);
 
-function fecharBoxIrma(tipo, idAtual) {
-  const seletor = tipo === "imagem" ? `[id^="imagem-box-"]` : `[id^="gif-box-"]`;
-  const boxes = document.querySelectorAll(seletor);
+    const panel = document.createElement("div");
+    panel.className = `muscle-panel ${index === 0 ? "active" : ""}`;
+    panel.id = `painel-${secao}-${item.id}`;
 
-  boxes.forEach((box) => {
-    const idBox = Number(box.id.split("-").pop());
-    if (idBox !== idAtual) {
-      box.classList.remove("show");
-    }
+    panel.innerHTML = `
+      <h3>${item.id}. ${item.nome}</h3>
+
+      <div class="muscle-meta">
+        <span class="muscle-chip">${item.secao.toUpperCase()}</span>
+        <span class="muscle-chip">${item.categoria}</span>
+      </div>
+
+      <div class="answer-block ${modoProfessor ? "" : "locked"}">
+        ${
+          modoProfessor
+            ? `
+              <p><strong>Ação:</strong> ${item.acao}</p>
+              <p><strong>Fixação proximal:</strong> ${item.fixacao_proximal}</p>
+              <p><strong>Inserção:</strong> ${item.insercao}</p>
+            `
+            : `
+              <p><strong>Ação:</strong> 🔒 bloqueada</p>
+              <p><strong>Fixação proximal:</strong> 🔒 bloqueada</p>
+              <p><strong>Inserção:</strong> 🔒 bloqueada</p>
+            `
+        }
+      </div>
+
+      <div class="muscle-actions">
+        <button class="btn btn-primary" type="button" onclick="abrirImagem('${item.imagem}', '${item.nome}')">Ver imagem</button>
+        <button class="btn btn-secondary" type="button" onclick="abrirGif('${item.gif}', '${item.nome}')">Ver GIF</button>
+        <button class="btn btn-ghost" type="button" onclick="falarEstrutura(${item.id})">Ouvir</button>
+      </div>
+    `;
+
+    panelsContainer.appendChild(panel);
   });
+
+  const primeiro = itens[0];
+  if (primeiro) atualizarResumo(primeiro);
 }
 
-function mostrarResumo(id) {
-  tocarClique();
-  const item = estruturas.find((e) => e.id === id);
-  if (!item) return;
+function ativarAba(secao, id) {
+  document.querySelectorAll(`#tabs-${secao} .muscle-tab`).forEach(btn => btn.classList.remove("active"));
+  document.querySelectorAll(`#lista-${secao} .muscle-panel`).forEach(panel => panel.classList.remove("active"));
 
+  const tabs = [...document.querySelectorAll(`#tabs-${secao} .muscle-tab`)];
+  const itensDaSecao = estruturas.filter(e => {
+    const termo = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+    const bateBusca =
+      !termo ||
+      String(e.id).includes(termo) ||
+      (e.nome || "").toLowerCase().includes(termo) ||
+      (e.categoria || "").toLowerCase().includes(termo);
+
+    if (secaoAtual === "todas") return e.secao === secao && bateBusca;
+    return e.secao === secao && e.secao === secaoAtual && bateBusca;
+  });
+
+  const indice = itensDaSecao.findIndex(e => e.id === id);
+
+  if (tabs[indice]) tabs[indice].classList.add("active");
+
+  const alvo = document.getElementById(`painel-${secao}-${id}`);
+  if (alvo) alvo.classList.add("active");
+
+  const item = estruturas.find(e => e.id === id);
+  if (item) atualizarResumo(item);
+}
+
+function atualizarResumo(item) {
   const resumo = document.getElementById("resumoEstrutura");
-  resumo.className = "";
+  if (!resumo) return;
+
   resumo.innerHTML = `
-    <div class="answer-row">
-      <span class="answer-label">Estrutura</span>
-      <div class="answer-value">${escaparHtml(item.nome)}</div>
-    </div>
-    <div class="answer-row">
-      <span class="answer-label">Seção</span>
-      <div class="answer-value">${escaparHtml(formatarSecao(item.secao))}</div>
-    </div>
-    <div class="answer-row">
-      <span class="answer-label">Categoria</span>
-      <div class="answer-value">${escaparHtml(item.categoria || "Não informada")}</div>
-    </div>
+    <strong>${item.id}. ${item.nome}</strong><br>
+    <span>${item.categoria}</span><br><br>
     ${
       modoProfessor
         ? `
-        <div class="answer-row">
-          <span class="answer-label">Ação</span>
-          <div class="answer-value">${escaparHtml(item.acao || "Não preenchido.")}</div>
-        </div>
-        <div class="answer-row">
-          <span class="answer-label">Fixação proximal</span>
-          <div class="answer-value">${escaparHtml(item.fixacao_proximal || "Não preenchido.")}</div>
-        </div>
-        <div class="answer-row">
-          <span class="answer-label">Inserção</span>
-          <div class="answer-value">${escaparHtml(item.insercao || "Não preenchido.")}</div>
-        </div>
+          <strong>Ação:</strong> ${item.acao}<br>
+          <strong>Fixação proximal:</strong> ${item.fixacao_proximal}<br>
+          <strong>Inserção:</strong> ${item.insercao}
         `
-        : `
-        <div class="locked" style="margin-top:10px;">
-          As respostas anatômicas ficam visíveis apenas no modo professor.
-        </div>
-        `
+        : `Ative o modo professor para visualizar ação, fixação proximal e inserção.`
     }
   `;
 }
 
-function atualizarViewer(tipo, item) {
-  if (!item) return;
-
+function abrirImagem(caminho, nome) {
   const viewerEmpty = document.getElementById("viewerEmpty");
   const viewerImage = document.getElementById("viewerImage");
   const viewerGif = document.getElementById("viewerGif");
 
-  viewerEmpty.classList.add("hidden");
-  viewerImage.classList.add("hidden");
-  viewerGif.classList.add("hidden");
+  if (viewerEmpty) viewerEmpty.classList.add("hidden");
 
-  if (tipo === "imagem" && item.imagem) {
-    viewerImage.src = `/static/${item.imagem}`;
-    viewerImage.alt = `Imagem ampliada de ${item.nome}`;
-    viewerImage.classList.remove("hidden");
-  } else if (tipo === "gif" && item.gif) {
-    viewerGif.src = `/static/${item.gif}`;
-    viewerGif.alt = `GIF ampliado de ${item.nome}`;
-    viewerGif.classList.remove("hidden");
-  } else {
-    viewerEmpty.textContent = "Recurso visual não cadastrado.";
-    viewerEmpty.classList.remove("hidden");
+  if (viewerGif) {
+    viewerGif.classList.add("hidden");
+    viewerGif.src = "";
   }
 
-  mostrarResumo(item.id);
+  if (viewerImage) {
+    viewerImage.src = `/static/${caminho}`;
+    viewerImage.alt = nome;
+    viewerImage.classList.remove("hidden");
+  }
+
+  tocarClique();
+}
+
+function abrirGif(caminho, nome) {
+  const viewerEmpty = document.getElementById("viewerEmpty");
+  const viewerImage = document.getElementById("viewerImage");
+  const viewerGif = document.getElementById("viewerGif");
+
+  if (viewerEmpty) viewerEmpty.classList.add("hidden");
+
+  if (viewerImage) {
+    viewerImage.classList.add("hidden");
+    viewerImage.src = "";
+  }
+
+  if (viewerGif) {
+    viewerGif.src = `/static/${caminho}`;
+    viewerGif.alt = nome;
+    viewerGif.classList.remove("hidden");
+  }
+
+  tocarClique();
 }
 
 function ativarModoProfessor() {
-  tocarClique();
-  const senha = document.getElementById("senhaProfessor").value;
+  const senha = document.getElementById("senhaProfessor")?.value || "";
   const status = document.getElementById("profStatus");
 
   if (senha === "pinheiro") {
     modoProfessor = true;
-    status.textContent = "Modo professor ativado.";
-    document.getElementById("senhaProfessor").value = "";
-    renderizarEstruturas();
-    mostrarToast("Modo professor liberado.");
+    if (status) status.textContent = "Modo professor liberado.";
+    renderizarSecao("dorso");
+    renderizarSecao("torax");
+    mostrarToast("Modo professor ativado.");
   } else {
-    modoProfessor = false;
-    status.textContent = "Senha incorreta.";
+    if (status) status.textContent = "Senha incorreta.";
     mostrarToast("Senha incorreta.");
   }
 }
 
 function desativarModoProfessor() {
-  tocarClique();
   modoProfessor = false;
-  document.getElementById("profStatus").textContent = "Modo professor bloqueado.";
-  renderizarEstruturas();
+  const status = document.getElementById("profStatus");
+  if (status) status.textContent = "Modo professor bloqueado.";
+  renderizarSecao("dorso");
+  renderizarSecao("torax");
   mostrarToast("Modo professor bloqueado.");
 }
 
 function filtrarEstruturas() {
-  renderizarEstruturas();
+  renderizarSecao("dorso");
+  renderizarSecao("torax");
 }
 
 function filtrarPorSecao(secao, botao) {
-  tocarClique();
-  filtroSecaoAtual = secao;
+  secaoAtual = secao;
 
-  document.querySelectorAll(".filter-btn").forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
   if (botao) botao.classList.add("active");
 
-  renderizarEstruturas();
-}
-
-function atualizarVisibilidadeSecoes() {
   const secaoDorso = document.getElementById("secao-dorso");
   const secaoTorax = document.getElementById("secao-torax");
-  const listaDorso = document.getElementById("lista-dorso");
-  const listaTorax = document.getElementById("lista-torax");
 
-  secaoDorso.style.display = listaDorso.children.length ? "block" : "none";
-  secaoTorax.style.display = listaTorax.children.length ? "block" : "none";
+  if (secao === "dorso") {
+    secaoDorso.style.display = "block";
+    secaoTorax.style.display = "none";
+  } else if (secao === "torax") {
+    secaoDorso.style.display = "none";
+    secaoTorax.style.display = "block";
+  } else {
+    secaoDorso.style.display = "block";
+    secaoTorax.style.display = "block";
+  }
+
+  renderizarSecao("dorso");
+  renderizarSecao("torax");
 }
 
 function rolarPara(id) {
-  tocarClique();
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function gerarPDF(idSecao, nomeArquivo) {
-  tocarClique();
+function falarEstrutura(id) {
+  const item = estruturas.find(e => e.id === id);
+  if (!item || !("speechSynthesis" in window)) return;
 
-  const elemento = document.getElementById(idSecao);
-  if (!elemento) {
-    mostrarToast("Seção não encontrada.");
-    return;
-  }
+  const texto = modoProfessor
+    ? `${item.nome}. Ação: ${item.acao}. Fixação proximal: ${item.fixacao_proximal}. Inserção: ${item.insercao}.`
+    : `${item.nome}. Ative o modo professor para ouvir as respostas completas.`;
 
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(texto);
+  utter.lang = "pt-BR";
+  window.speechSynthesis.speak(utter);
+}
+
+function tocarClique() {
   try {
-    mostrarToast("Gerando PDF...");
-    const canvas = await html2canvas(elemento, {
-      scale: 2,
-      backgroundColor: "#0b1f33"
-    });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-    const imgData = canvas.toDataURL("image/png");
-    const { jsPDF } = window.jspdf;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const larguraPdf = 210;
-    const alturaPdf = 297;
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(650, ctx.currentTime);
+    gain.gain.setValueAtTime(0.03, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
 
-    const larguraImg = larguraPdf - 10;
-    const alturaImg = (canvas.height * larguraImg) / canvas.width;
-
-    let alturaRestante = alturaImg;
-    let posicao = 5;
-
-    pdf.addImage(imgData, "PNG", 5, posicao, larguraImg, alturaImg);
-    alturaRestante -= alturaPdf;
-
-    while (alturaRestante > 0) {
-      posicao = alturaRestante - alturaImg + 5;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 5, posicao, larguraImg, alturaImg);
-      alturaRestante -= alturaPdf;
-    }
-
-    pdf.save(nomeArquivo);
-    mostrarToast("PDF gerado com sucesso.");
-  } catch (erro) {
-    console.error(erro);
-    mostrarToast("Erro ao gerar o PDF.");
-  }
+    osc.start();
+    osc.stop(ctx.currentTime + 0.08);
+  } catch (e) {}
 }
 
-function configurarInstalacaoPWA() {
-  const installBtn = document.getElementById("installBtn");
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (installBtn) installBtn.style.display = "inline-flex";
-  });
-
-  if (installBtn) {
-    installBtn.addEventListener("click", async () => {
-      tocarClique();
-
-      if (!deferredPrompt) {
-        mostrarToast("Abra no navegador compatível para instalar.");
-        return;
-      }
-
-      deferredPrompt.prompt();
-      const escolha = await deferredPrompt.userChoice;
-      if (escolha.outcome === "accepted") {
-        mostrarToast("Instalação iniciada.");
-      } else {
-        mostrarToast("Instalação cancelada.");
-      }
-      deferredPrompt = null;
-    });
-  }
-
-  window.addEventListener("appinstalled", () => {
-    mostrarToast("App instalado com sucesso.");
-  });
+function alternarTema() {
+  const body = document.body;
+  const atual = body.getAttribute("data-theme") || "dark";
+  const novo = atual === "dark" ? "light" : "dark";
+  body.setAttribute("data-theme", novo);
+  localStorage.setItem("temaAtlas", novo);
 }
 
-function registrarServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js")
-      .then(() => {
-        console.log("Service Worker registrado.");
-      })
-      .catch((erro) => {
-        console.warn("Falha ao registrar Service Worker:", erro);
-      });
-  }
+function aplicarTemaSalvo() {
+  const salvo = localStorage.getItem("temaAtlas") || "dark";
+  document.body.setAttribute("data-theme", salvo);
 }
 
 function mostrarToast(texto) {
@@ -403,57 +294,17 @@ function mostrarToast(texto) {
   toast.textContent = texto;
   toast.classList.add("show");
 
-  clearTimeout(window.__toastTimer);
-  window.__toastTimer = setTimeout(() => {
+  setTimeout(() => {
     toast.classList.remove("show");
-  }, 2400);
+  }, 2200);
 }
 
-function aplicarFotoNo3D() {
-  tocarClique();
+document.addEventListener("DOMContentLoaded", () => {
+  aplicarTemaSalvo();
+  carregarEstruturas();
 
-  const input = document.getElementById("foto3d");
-  const preview = document.getElementById("previewFoto3d");
-
-  if (!input || !input.files || !input.files[0]) {
-    mostrarToast("Selecione uma foto primeiro.");
-    return;
+  const themeToggle = document.getElementById("themeToggle");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", alternarTema);
   }
-
-  const arquivo = input.files[0];
-  const leitor = new FileReader();
-
-  leitor.onload = function (evento) {
-    const dataUrl = evento.target.result;
-    preview.src = dataUrl;
-    preview.classList.add("show");
-
-    if (typeof window.aplicarTextura3D === "function") {
-      window.aplicarTextura3D(dataUrl);
-      mostrarToast("Foto aplicada no modelo 3D.");
-    } else {
-      mostrarToast("Área 3D ainda não carregada.");
-    }
-  };
-
-  leitor.readAsDataURL(arquivo);
-}
-
-function formatarSecao(secao) {
-  if (secao === "dorso") return "Dorso";
-  if (secao === "torax") return "Tórax";
-  return secao || "";
-}
-
-function escaparHtml(texto) {
-  return String(texto)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function escaparAtributo(texto) {
-  return escaparHtml(texto);
-}
+});
