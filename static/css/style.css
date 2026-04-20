@@ -619,3 +619,51 @@ img{
     height:300px;
   }
 }
+
+.muscle-card {
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  background: rgba(255,255,255,.04);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.muscle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.muscle-header-left h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.muscle-subtitle {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .92rem;
+}
+
+.muscle-arrow {
+  font-size: 1rem;
+  font-weight: 700;
+  opacity: .9;
+}
+
+.muscle-content {
+  display: none;
+  padding: 0 16px 16px;
+}
+
+.muscle-content.open {
+  display: block;
+}
+
+.muscle-card.expanded .muscle-header {
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
