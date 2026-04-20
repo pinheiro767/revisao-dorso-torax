@@ -67,49 +67,88 @@ function renderizarSecao(secao) {
 
   itens.forEach(item => {
     const card = document.createElement("div");
-    card.className = "muscle-panel active";
+    card.className = "muscle-card";
 
     card.innerHTML = `
-      <h3>${item.id}. ${item.nome}</h3>
-
-      <div class="muscle-meta">
-        <span class="muscle-chip">${item.secao.toUpperCase()}</span>
-        <span class="muscle-chip">${item.categoria || "Sem categoria"}</span>
+      <div class="muscle-header" onclick="toggleCard(this)">
+        <div class="muscle-header-left">
+          <h3>${item.id}. ${item.nome}</h3>
+          <span class="muscle-subtitle">${item.categoria || "Sem categoria"}</span>
+        </div>
+        <span class="muscle-arrow">▼</span>
       </div>
 
-      <div class="answer-block ${modoProfessor ? "" : "locked"}">
-        ${
-          modoProfessor
-            ? `
-              <p><strong>Ação:</strong> ${item.acao || "-"}</p>
-              <p><strong>Fixação proximal:</strong> ${item.fixacao_proximal || "-"}</p>
-              <p><strong>Inserção:</strong> ${item.insercao || "-"}</p>
-            `
-            : `
-              <p><strong>Ação:</strong> 🔒 bloqueada</p>
-              <p><strong>Fixação proximal:</strong> 🔒 bloqueada</p>
-              <p><strong>Inserção:</strong> 🔒 bloqueada</p>
-            `
-        }
-      </div>
+      <div class="muscle-content">
+        <div class="muscle-meta">
+          <span class="muscle-chip">${item.secao.toUpperCase()}</span>
+          <span class="muscle-chip">${item.categoria || "Sem categoria"}</span>
+        </div>
 
-      <div class="muscle-actions">
-        <button class="btn btn-primary" type="button" onclick="abrirImagem('${item.imagem}', '${escapeHtml(item.nome)}', ${item.id})">
-          Ver imagem
-        </button>
+        <div class="answer-block ${modoProfessor ? "" : "locked"}">
+          ${
+            modoProfessor
+              ? `
+                <p><strong>Ação:</strong> ${item.acao || "-"}</p>
+                <p><strong>Fixação proximal:</strong> ${item.fixacao_proximal || "-"}</p>
+                <p><strong>Inserção:</strong> ${item.insercao || "-"}</p>
+              `
+              : `
+                <p><strong>Ação:</strong> 🔒 bloqueada</p>
+                <p><strong>Fixação proximal:</strong> 🔒 bloqueada</p>
+                <p><strong>Inserção:</strong> 🔒 bloqueada</p>
+              `
+          }
+        </div>
 
-        <button class="btn btn-secondary" type="button" onclick="abrirGif('${item.gif}', '${escapeHtml(item.nome)}', ${item.id})">
-          Ver GIF
-        </button>
+        <div class="muscle-actions">
+          <button
+            class="btn btn-primary"
+            type="button"
+            onclick="abrirImagem('${item.imagem}', '${escapeHtml(item.nome)}', ${item.id}); event.stopPropagation();"
+          >
+            Ver imagem
+          </button>
 
-        <button class="btn btn-ghost" type="button" onclick="falarEstrutura(${item.id})">
-          Ouvir
-        </button>
+          <button
+            class="btn btn-secondary"
+            type="button"
+            onclick="abrirGif('${item.gif}', '${escapeHtml(item.nome)}', ${item.id}); event.stopPropagation();"
+          >
+            Ver GIF
+          </button>
+
+          <button
+            class="btn btn-ghost"
+            type="button"
+            onclick="falarEstrutura(${item.id}); event.stopPropagation();"
+          >
+            Ouvir
+          </button>
+        </div>
       </div>
     `;
 
     container.appendChild(card);
   });
+}
+
+function toggleCard(header) {
+  const card = header.closest(".muscle-card");
+  if (!card) return;
+
+  const content = card.querySelector(".muscle-content");
+  const arrow = card.querySelector(".muscle-arrow");
+
+  if (!content) return;
+
+  const aberto = content.classList.contains("open");
+
+  content.classList.toggle("open", !aberto);
+  card.classList.toggle("expanded", !aberto);
+
+  if (arrow) {
+    arrow.textContent = aberto ? "▼" : "▲";
+  }
 }
 
 /* =========================
