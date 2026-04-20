@@ -425,28 +425,24 @@ function tocarClique() {
 ========================= */
 function configurarInstalacaoPWA() {
   const installBtn = document.getElementById("installBtn");
+  if (!installBtn) return;
+
+  installBtn.addEventListener("click", async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      return;
+    }
+
+    mostrarToast("Se não abrir a instalação, use o menu do navegador e toque em 'Instalar app' ou 'Adicionar à tela inicial'.");
+  });
 
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-
-    if (installBtn) {
-      installBtn.style.display = "inline-flex";
-    }
+    installBtn.style.display = "inline-flex";
   });
-
-  if (installBtn) {
-    installBtn.addEventListener("click", async () => {
-      if (!deferredPrompt) {
-        mostrarToast("Instalação não disponível agora.");
-        return;
-      }
-
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
-    });
-  }
 }
 
 /* =========================
