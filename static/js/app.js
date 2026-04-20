@@ -1,76 +1,89 @@
 let estruturas = [];
-let secaoAtual = "todas";
 let modoProfessor = false;
+let deferredPrompt = null;
 
+/* =========================
+   INICIALIZAÇÃO
+========================= */
+document.addEventListener("DOMContentLoaded", () => {
+  aplicarTemaSalvo();
+  configurarInstalacaoPWA();
+  carregarEstruturas();
+
+  abrirAbaLateral("aba-inicio", document.querySelector(".side-tab.active"));
+});
+
+/* =========================
+   CARREGAR DADOS
+========================= */
 async function carregarEstruturas() {
   try {
     const resposta = await fetch("/api/musculos");
+    if (!resposta.ok) {
+      throw new Error("Falha ao buscar /api/musculos");
+    }
+
     estruturas = await resposta.json();
 
     renderizarSecao("dorso");
     renderizarSecao("torax");
-    aplicarTemaSalvo();
+
+    if (estruturas.length > 0) {
+      atualizarResumo(estruturas[0]);
+    }
   } catch (erro) {
     console.error("Erro ao carregar estruturas:", erro);
-    mostrarToast("Erro ao carregar os músculos.");
+    mostrarToast("Erro ao carregar músculos.");
   }
 }
 
+/* =========================
+   RENDERIZAÇÃO
+========================= */
 function renderizarSecao(secao) {
-  const tabsContainer = document.getElementById(`tabs-${secao}`);
-  const panelsContainer = document.getElementById(`lista-${secao}`);
-
-  if (!tabsContainer || !panelsContainer) return;
+  const container = document.getElementById(`lista-${secao}`);
+  if (!container) return;
 
   const termo = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
 
-  const itens = estruturas.filter(e => {
-    const mesmaSecao = e.secao === secao;
-    const bateBusca =
-      !termo ||
-      String(e.id).includes(termo) ||
-      (e.nome || "").toLowerCase().includes(termo) ||
-      (e.categoria || "").toLowerCase().includes(termo);
+  const itens = estruturas.filter(item => {
+    if (item.secao !== secao) return false;
 
-    if (secaoAtual === "todas") return mesmaSecao && bateBusca;
-    return mesmaSecao && bateBusca && e.secao === secaoAtual;
+    if (!termo) return true;
+
+    return (
+      String(item.id).includes(termo) ||
+      (item.nome || "").toLowerCase().includes(termo) ||
+      (item.categoria || "").toLowerCase().includes(termo)
+    );
   });
 
-  tabsContainer.innerHTML = "";
-  panelsContainer.innerHTML = "";
+  container.innerHTML = "";
 
   if (!itens.length) {
-    panelsContainer.innerHTML = `<div class="viewer-empty">Nenhuma estrutura encontrada nesta seção.</div>`;
+    container.innerHTML = `<div class="viewer-empty">Nenhuma estrutura encontrada.</div>`;
     return;
   }
 
-  itens.forEach((item, index) => {
-    const tab = document.createElement("button");
-    tab.className = `muscle-tab ${index === 0 ? "active" : ""}`;
-    tab.type = "button";
-    tab.textContent = `${item.id}. ${item.nome}`;
-    tab.onclick = () => ativarAba(secao, item.id);
-    tabsContainer.appendChild(tab);
+  itens.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "muscle-panel active";
 
-    const panel = document.createElement("div");
-    panel.className = `muscle-panel ${index === 0 ? "active" : ""}`;
-    panel.id = `painel-${secao}-${item.id}`;
-
-    panel.innerHTML = `
+    card.innerHTML = `
       <h3>${item.id}. ${item.nome}</h3>
 
       <div class="muscle-meta">
         <span class="muscle-chip">${item.secao.toUpperCase()}</span>
-        <span class="muscle-chip">${item.categoria}</span>
+        <span class="muscle-chip">${item.categoria || "Sem categoria"}</span>
       </div>
 
       <div class="answer-block ${modoProfessor ? "" : "locked"}">
         ${
           modoProfessor
             ? `
-              <p><strong>Ação:</strong> ${item.acao}</p>
-              <p><strong>Fixação proximal:</strong> ${item.fixacao_proximal}</p>
-              <p><strong>Inserção:</strong> ${item.insercao}</p>
+              <p><strong>Ação:</strong> ${item.acao || "-"}</p>
+              <p><strong>Fixação proximal:</strong> ${item.fixacao_proximal || "-"}</p>
+              <p><strong>Inserção:</strong> ${item.insercao || "-"}</p>
             `
             : `
               <p><strong>Ação:</strong> 🔒 bloqueada</p>
@@ -81,67 +94,36 @@ function renderizarSecao(secao) {
       </div>
 
       <div class="muscle-actions">
-        <button class="btn btn-primary" type="button" onclick="abrirImagem('${item.imagem}', '${item.nome}')">Ver imagem</button>
-        <button class="btn btn-secondary" type="button" onclick="abrirGif('${item.gif}', '${item.nome}')">Ver GIF</button>
-        <button class="btn btn-ghost" type="button" onclick="falarEstrutura(${item.id})">Ouvir</button>
+        <button class="btn btn-primary" type="button" onclick="abrirImagem('${item.imagem}', '${escapeHtml(item.nome)}', ${item.id})">
+          Ver imagem
+        </button>
+
+        <button class="btn btn-secondary" type="button" onclick="abrirGif('${item.gif}', '${escapeHtml(item.nome)}', ${item.id})">
+          Ver GIF
+        </button>
+
+        <button class="btn btn-ghost" type="button" onclick="falarEstrutura(${item.id})">
+          Ouvir
+        </button>
       </div>
     `;
 
-    panelsContainer.appendChild(panel);
+    container.appendChild(card);
   });
-
-  const primeiro = itens[0];
-  if (primeiro) atualizarResumo(primeiro);
 }
 
-function ativarAba(secao, id) {
-  document.querySelectorAll(`#tabs-${secao} .muscle-tab`).forEach(btn => btn.classList.remove("active"));
-  document.querySelectorAll(`#lista-${secao} .muscle-panel`).forEach(panel => panel.classList.remove("active"));
-
-  const tabs = [...document.querySelectorAll(`#tabs-${secao} .muscle-tab`)];
-  const itensDaSecao = estruturas.filter(e => {
-    const termo = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
-    const bateBusca =
-      !termo ||
-      String(e.id).includes(termo) ||
-      (e.nome || "").toLowerCase().includes(termo) ||
-      (e.categoria || "").toLowerCase().includes(termo);
-
-    if (secaoAtual === "todas") return e.secao === secao && bateBusca;
-    return e.secao === secao && e.secao === secaoAtual && bateBusca;
-  });
-
-  const indice = itensDaSecao.findIndex(e => e.id === id);
-
-  if (tabs[indice]) tabs[indice].classList.add("active");
-
-  const alvo = document.getElementById(`painel-${secao}-${id}`);
-  if (alvo) alvo.classList.add("active");
-
-  const item = estruturas.find(e => e.id === id);
-  if (item) atualizarResumo(item);
+/* =========================
+   BUSCA
+========================= */
+function filtrarEstruturas() {
+  renderizarSecao("dorso");
+  renderizarSecao("torax");
 }
 
-function atualizarResumo(item) {
-  const resumo = document.getElementById("resumoEstrutura");
-  if (!resumo) return;
-
-  resumo.innerHTML = `
-    <strong>${item.id}. ${item.nome}</strong><br>
-    <span>${item.categoria}</span><br><br>
-    ${
-      modoProfessor
-        ? `
-          <strong>Ação:</strong> ${item.acao}<br>
-          <strong>Fixação proximal:</strong> ${item.fixacao_proximal}<br>
-          <strong>Inserção:</strong> ${item.insercao}
-        `
-        : `Ative o modo professor para visualizar ação, fixação proximal e inserção.`
-    }
-  `;
-}
-
-function abrirImagem(caminho, nome) {
+/* =========================
+   VISUALIZAÇÃO
+========================= */
+function abrirImagem(caminho, nome, id) {
   const viewerEmpty = document.getElementById("viewerEmpty");
   const viewerImage = document.getElementById("viewerImage");
   const viewerGif = document.getElementById("viewerGif");
@@ -159,10 +141,13 @@ function abrirImagem(caminho, nome) {
     viewerImage.classList.remove("hidden");
   }
 
+  const item = estruturas.find(e => e.id === id);
+  if (item) atualizarResumo(item);
+
   tocarClique();
 }
 
-function abrirGif(caminho, nome) {
+function abrirGif(caminho, nome, id) {
   const viewerEmpty = document.getElementById("viewerEmpty");
   const viewerImage = document.getElementById("viewerImage");
   const viewerGif = document.getElementById("viewerGif");
@@ -180,9 +165,34 @@ function abrirGif(caminho, nome) {
     viewerGif.classList.remove("hidden");
   }
 
+  const item = estruturas.find(e => e.id === id);
+  if (item) atualizarResumo(item);
+
   tocarClique();
 }
 
+function atualizarResumo(item) {
+  const resumo = document.getElementById("resumoEstrutura");
+  if (!resumo || !item) return;
+
+  resumo.innerHTML = `
+    <strong>${item.id}. ${item.nome}</strong><br>
+    <span>${item.categoria || ""}</span><br><br>
+    ${
+      modoProfessor
+        ? `
+          <strong>Ação:</strong> ${item.acao || "-"}<br>
+          <strong>Fixação proximal:</strong> ${item.fixacao_proximal || "-"}<br>
+          <strong>Inserção:</strong> ${item.insercao || "-"}
+        `
+        : `Ative o modo professor para visualizar ação, fixação proximal e inserção.`
+    }
+  `;
+}
+
+/* =========================
+   MODO PROFESSOR
+========================= */
 function ativarModoProfessor() {
   const senha = document.getElementById("senhaProfessor")?.value || "";
   const status = document.getElementById("profStatus");
@@ -208,51 +218,148 @@ function desativarModoProfessor() {
   mostrarToast("Modo professor bloqueado.");
 }
 
-function filtrarEstruturas() {
-  renderizarSecao("dorso");
-  renderizarSecao("torax");
+/* =========================
+   TEMA
+========================= */
+function alternarTema() {
+  const html = document.documentElement;
+  const atual = html.getAttribute("data-theme") || "dark";
+  const novo = atual === "dark" ? "light" : "dark";
+
+  html.setAttribute("data-theme", novo);
+  document.body.setAttribute("data-theme", novo);
+  localStorage.setItem("temaAtlas", novo);
+
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) {
+    themeMeta.setAttribute("content", novo === "dark" ? "#0f172a" : "#e2e8f0");
+  }
 }
 
-function filtrarPorSecao(secao, botao) {
-  secaoAtual = secao;
+function aplicarTemaSalvo() {
+  const salvo = localStorage.getItem("temaAtlas") || "dark";
 
-  document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
-  if (botao) botao.classList.add("active");
+  document.documentElement.setAttribute("data-theme", salvo);
+  document.body.setAttribute("data-theme", salvo);
 
-  const secaoDorso = document.getElementById("secao-dorso");
-  const secaoTorax = document.getElementById("secao-torax");
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) {
+    themeMeta.setAttribute("content", salvo === "dark" ? "#0f172a" : "#e2e8f0");
+  }
+}
 
-  if (secao === "dorso") {
-    secaoDorso.style.display = "block";
-    secaoTorax.style.display = "none";
-  } else if (secao === "torax") {
-    secaoDorso.style.display = "none";
-    secaoTorax.style.display = "block";
+/* =========================
+   ABAS LATERAIS
+========================= */
+function abrirAbaLateral(idAba, botao) {
+  document.querySelectorAll(".content-pane").forEach(pane => {
+    pane.classList.remove("active");
+  });
+
+  document.querySelectorAll(".side-tab").forEach(tab => {
+    tab.classList.remove("active");
+  });
+
+  const aba = document.getElementById(idAba);
+  if (aba) aba.classList.add("active");
+
+  if (botao) {
+    botao.classList.add("active");
   } else {
-    secaoDorso.style.display = "block";
-    secaoTorax.style.display = "block";
+    const btn = [...document.querySelectorAll(".side-tab")].find(el =>
+      el.getAttribute("onclick")?.includes(idAba)
+    );
+    if (btn) btn.classList.add("active");
   }
 
-  renderizarSecao("dorso");
-  renderizarSecao("torax");
+  fecharMenuMobile();
 }
 
-function rolarPara(id) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+/* =========================
+   MENU MOBILE
+========================= */
+function abrirMenuMobile() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("mobileOverlay");
+
+  sidebar?.classList.add("open");
+  overlay?.classList.add("show");
 }
 
+function fecharMenuMobile() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("mobileOverlay");
+
+  sidebar?.classList.remove("open");
+  overlay?.classList.remove("show");
+}
+
+/* =========================
+   PDF
+========================= */
+async function gerarPDF(idElemento, nomeArquivo) {
+  const elemento = document.getElementById(idElemento);
+  if (!elemento) {
+    mostrarToast("Seção não encontrada.");
+    return;
+  }
+
+  try {
+    mostrarToast("Gerando PDF...");
+
+    const canvas = await html2canvas(elemento, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: null
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const { jsPDF } = window.jspdf;
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let y = 10;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 10, y, imgWidth, imgHeight);
+    heightLeft -= (pageHeight - 20);
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 10, position + 10, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - 20);
+    }
+
+    pdf.save(nomeArquivo);
+    mostrarToast("PDF gerado com sucesso.");
+  } catch (erro) {
+    console.error("Erro ao gerar PDF:", erro);
+    mostrarToast("Erro ao gerar PDF.");
+  }
+}
+
+/* =========================
+   ÁUDIO
+========================= */
 function falarEstrutura(id) {
   const item = estruturas.find(e => e.id === id);
   if (!item || !("speechSynthesis" in window)) return;
 
   const texto = modoProfessor
-    ? `${item.nome}. Ação: ${item.acao}. Fixação proximal: ${item.fixacao_proximal}. Inserção: ${item.insercao}.`
+    ? `${item.nome}. Ação: ${item.acao || ""}. Fixação proximal: ${item.fixacao_proximal || ""}. Inserção: ${item.insercao || ""}.`
     : `${item.nome}. Ative o modo professor para ouvir as respostas completas.`;
 
   window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(texto);
-  utter.lang = "pt-BR";
-  window.speechSynthesis.speak(utter);
+  const fala = new SpeechSynthesisUtterance(texto);
+  fala.lang = "pt-BR";
+  window.speechSynthesis.speak(fala);
 }
 
 function tocarClique() {
@@ -274,19 +381,38 @@ function tocarClique() {
   } catch (e) {}
 }
 
-function alternarTema() {
-  const body = document.body;
-  const atual = body.getAttribute("data-theme") || "dark";
-  const novo = atual === "dark" ? "light" : "dark";
-  body.setAttribute("data-theme", novo);
-  localStorage.setItem("temaAtlas", novo);
+/* =========================
+   PWA
+========================= */
+function configurarInstalacaoPWA() {
+  const installBtn = document.getElementById("installBtn");
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    if (installBtn) {
+      installBtn.style.display = "inline-flex";
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      if (!deferredPrompt) {
+        mostrarToast("Instalação não disponível agora.");
+        return;
+      }
+
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+  }
 }
 
-function aplicarTemaSalvo() {
-  const salvo = localStorage.getItem("temaAtlas") || "dark";
-  document.body.setAttribute("data-theme", salvo);
-}
-
+/* =========================
+   TOAST
+========================= */
 function mostrarToast(texto) {
   const toast = document.getElementById("toast");
   if (!toast) return;
@@ -299,12 +425,14 @@ function mostrarToast(texto) {
   }, 2200);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  aplicarTemaSalvo();
-  carregarEstruturas();
-
-  const themeToggle = document.getElementById("themeToggle");
-  if (themeToggle) {
-    themeToggle.addEventListener("click", alternarTema);
-  }
-});
+/* =========================
+   UTIL
+========================= */
+function escapeHtml(texto) {
+  return String(texto)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
