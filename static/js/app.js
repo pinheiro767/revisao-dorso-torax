@@ -348,10 +348,12 @@ async function gerarPDF(idSecao, nomeArquivo) {
   try {
     mostrarToast("Preparando PDF...");
 
-    const caixasImagem = elemento.querySelectorAll('.media-box, .gif-box, .answer-box');
+    elemento.classList.add("exportando-pdf");
+
+    const caixas = elemento.querySelectorAll('.media-box, .gif-box, .answer-box');
     const estadosOriginais = [];
 
-    caixasImagem.forEach((box) => {
+    caixas.forEach((box) => {
       estadosOriginais.push({
         elemento: box,
         classeShow: box.classList.contains("show")
@@ -366,8 +368,8 @@ async function gerarPDF(idSecao, nomeArquivo) {
           if (img.complete) {
             resolve();
           } else {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
+            img.onload = resolve;
+            img.onerror = resolve;
           }
         });
       })
@@ -382,6 +384,8 @@ async function gerarPDF(idSecao, nomeArquivo) {
       imageTimeout: 15000
     });
 
+    elemento.classList.remove("exportando-pdf");
+
     estadosOriginais.forEach((item) => {
       if (!item.classeShow) {
         item.elemento.classList.remove("show");
@@ -392,29 +396,28 @@ async function gerarPDF(idSecao, nomeArquivo) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("p", "mm", "a4");
 
-    const pdfLargura = 210;
-    const pdfAltura = 297;
+    const larguraPagina = 210;
+    const alturaPagina = 297;
     const margem = 8;
+    const larguraImagem = larguraPagina - margem * 2;
+    const alturaImagem = (canvas.height * larguraImagem) / canvas.width;
 
-    const imgLargura = pdfLargura - margem * 2;
-    const imgAltura = (canvas.height * imgLargura) / canvas.width;
-
-    let alturaRestante = imgAltura;
-    let posicaoY = margem;
+    let alturaRestante = alturaImagem;
+    let y = margem;
 
     pdf.setFillColor(11, 31, 51);
-    pdf.rect(0, 0, pdfLargura, pdfAltura, "F");
-    pdf.addImage(imgData, "PNG", margem, posicaoY, imgLargura, imgAltura);
+    pdf.rect(0, 0, larguraPagina, alturaPagina, "F");
+    pdf.addImage(imgData, "PNG", margem, y, larguraImagem, alturaImagem);
 
-    alturaRestante -= (pdfAltura - margem * 2);
+    alturaRestante -= (alturaPagina - margem * 2);
 
     while (alturaRestante > 0) {
-      posicaoY = margem - (imgAltura - alturaRestante);
+      y = margem - (alturaImagem - alturaRestante);
       pdf.addPage();
       pdf.setFillColor(11, 31, 51);
-      pdf.rect(0, 0, pdfLargura, pdfAltura, "F");
-      pdf.addImage(imgData, "PNG", margem, posicaoY, imgLargura, imgAltura);
-      alturaRestante -= (pdfAltura - margem * 2);
+      pdf.rect(0, 0, larguraPagina, alturaPagina, "F");
+      pdf.addImage(imgData, "PNG", margem, y, larguraImagem, alturaImagem);
+      alturaRestante -= (alturaPagina - margem * 2);
     }
 
     pdf.save(nomeArquivo);
