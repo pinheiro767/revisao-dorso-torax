@@ -336,9 +336,10 @@ function fecharMenuMobile() {
 /* =========================
    PDF
 ========================= */
-async function gerarPDF(idElemento, nomeArquivo) {
-  const elemento = document.getElementById(idElemento);
+async function gerarPDF(idSecao, nomeArquivo) {
+  tocarClique();
 
+  const elemento = document.getElementById(idSecao);
   if (!elemento) {
     mostrarToast("Seção não encontrada.");
     return;
@@ -347,45 +348,80 @@ async function gerarPDF(idElemento, nomeArquivo) {
   try {
     mostrarToast("Preparando PDF...");
 
-    abrirAbaLateral(idElemento);
-    await new Promise(resolve => setTimeout(resolve, 400));
+    const caixasImagem = elemento.querySelectorAll('.media-box, .gif-box, .answer-box');
+    const estadosOriginais = [];
 
-    const canvas = await html2canvas(elemento, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false
+    caixasImagem.forEach((box) => {
+      estadosOriginais.push({
+        elemento: box,
+        classeShow: box.classList.contains("show")
+      });
+      box.classList.add("show");
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    const imagens = elemento.querySelectorAll("img");
+    await Promise.all(
+      Array.from(imagens).map((img) => {
+        return new Promise((resolve) => {
+          if (img.complete) {
+            resolve();
+          } else {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }
+        });
+      })
+    );
+
+    const canvas = await html2canvas(elemento, {
+      scale: 2.5,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#0b1f33",
+      logging: false,
+      imageTimeout: 15000
+    });
+
+    estadosOriginais.forEach((item) => {
+      if (!item.classeShow) {
+        item.elemento.classList.remove("show");
+      }
+    });
+
+    const imgData = canvas.toDataURL("image/png", 1.0);
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("p", "mm", "a4");
 
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const margin = 10;
+    const pdfLargura = 210;
+    const pdfAltura = 297;
+    const margem = 8;
 
-    const imgWidth = pageWidth - margin * 2;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgLargura = pdfLargura - margem * 2;
+    const imgAltura = (canvas.height * imgLargura) / canvas.width;
 
-    let heightLeft = imgHeight;
-    let position = margin;
+    let alturaRestante = imgAltura;
+    let posicaoY = margem;
 
-    pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-    heightLeft -= (pageHeight - margin * 2);
+    pdf.setFillColor(11, 31, 51);
+    pdf.rect(0, 0, pdfLargura, pdfAltura, "F");
+    pdf.addImage(imgData, "PNG", margem, posicaoY, imgLargura, imgAltura);
 
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight + margin;
+    alturaRestante -= (pdfAltura - margem * 2);
+
+    while (alturaRestante > 0) {
+      posicaoY = margem - (imgAltura - alturaRestante);
       pdf.addPage();
-      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-      heightLeft -= (pageHeight - margin * 2);
+      pdf.setFillColor(11, 31, 51);
+      pdf.rect(0, 0, pdfLargura, pdfAltura, "F");
+      pdf.addImage(imgData, "PNG", margem, posicaoY, imgLargura, imgAltura);
+      alturaRestante -= (pdfAltura - margem * 2);
     }
 
     pdf.save(nomeArquivo);
     mostrarToast("PDF gerado com sucesso.");
   } catch (erro) {
-    console.error("Erro ao gerar PDF:", erro);
-    mostrarToast("Erro ao gerar PDF. Veja o console.");
+    console.error(erro);
+    mostrarToast("Erro ao gerar o PDF.");
   }
 }
 
