@@ -350,7 +350,7 @@ async function gerarPDF(idSecao, nomeArquivo) {
 
     elemento.classList.add("exportando-pdf");
 
-    const caixas = elemento.querySelectorAll('.media-box, .gif-box, .answer-box');
+    const caixas = elemento.querySelectorAll(".media-box, .gif-box, .answer-box");
     const estadosOriginais = [];
 
     caixas.forEach((box) => {
@@ -365,23 +365,25 @@ async function gerarPDF(idSecao, nomeArquivo) {
     await Promise.all(
       Array.from(imagens).map((img) => {
         return new Promise((resolve) => {
-          if (img.complete) {
+          if (img.complete && img.naturalWidth > 0) {
             resolve();
           } else {
-            img.onload = resolve;
-            img.onerror = resolve;
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
           }
         });
       })
     );
 
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     const canvas = await html2canvas(elemento, {
-      scale: 2.5,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#0b1f33",
       logging: false,
-      imageTimeout: 15000
+      imageTimeout: 20000
     });
 
     elemento.classList.remove("exportando-pdf");
@@ -392,7 +394,8 @@ async function gerarPDF(idSecao, nomeArquivo) {
       }
     });
 
-    const imgData = canvas.toDataURL("image/png", 1.0);
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF("p", "mm", "a4");
 
@@ -407,7 +410,7 @@ async function gerarPDF(idSecao, nomeArquivo) {
 
     pdf.setFillColor(11, 31, 51);
     pdf.rect(0, 0, larguraPagina, alturaPagina, "F");
-    pdf.addImage(imgData, "PNG", margem, y, larguraImagem, alturaImagem);
+    pdf.addImage(imgData, "JPEG", margem, y, larguraImagem, alturaImagem);
 
     alturaRestante -= (alturaPagina - margem * 2);
 
@@ -416,15 +419,17 @@ async function gerarPDF(idSecao, nomeArquivo) {
       pdf.addPage();
       pdf.setFillColor(11, 31, 51);
       pdf.rect(0, 0, larguraPagina, alturaPagina, "F");
-      pdf.addImage(imgData, "PNG", margem, y, larguraImagem, alturaImagem);
+      pdf.addImage(imgData, "JPEG", margem, y, larguraImagem, alturaImagem);
       alturaRestante -= (alturaPagina - margem * 2);
     }
 
     pdf.save(nomeArquivo);
     mostrarToast("PDF gerado com sucesso.");
   } catch (erro) {
-    console.error(erro);
+    console.error("Erro ao gerar PDF:", erro);
     mostrarToast("Erro ao gerar o PDF.");
+  } finally {
+    elemento.classList.remove("exportando-pdf");
   }
 }
 
