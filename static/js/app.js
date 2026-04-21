@@ -374,9 +374,21 @@ async function gerarPDF(idSecao, nomeArquivo) {
   }
 
   let estadosOriginais = [];
+  const jaEstavaAtiva = elemento.classList.contains("active");
 
   try {
     mostrarToast("Preparando PDF...");
+
+    if (!jaEstavaAtiva) {
+      elemento.classList.add("active");
+      elemento.style.display = "block";
+      elemento.style.visibility = "visible";
+      elemento.style.position = "relative";
+      elemento.style.left = "0";
+      elemento.style.top = "0";
+      elemento.style.opacity = "1";
+      elemento.style.pointerEvents = "auto";
+    }
 
     elemento.classList.add("exportando-pdf");
 
@@ -456,6 +468,17 @@ async function gerarPDF(idSecao, nomeArquivo) {
         item.elemento.classList.remove("show");
       }
     });
+
+    if (!jaEstavaAtiva) {
+      elemento.classList.remove("active");
+      elemento.style.display = "";
+      elemento.style.visibility = "";
+      elemento.style.position = "";
+      elemento.style.left = "";
+      elemento.style.top = "";
+      elemento.style.opacity = "";
+      elemento.style.pointerEvents = "";
+    }
   }
 }
 
