@@ -1,341 +1,369 @@
 let estruturas = [];
+let filtroSecaoAtual = "todas";
 let modoProfessor = false;
 let deferredPrompt = null;
+let clickAudio = null;
 
-/* =========================
-   INICIALIZAÇÃO
-========================= */
-document.addEventListener("DOMContentLoaded", () => {
-  aplicarTemaSalvo();
+document.addEventListener("DOMContentLoaded", async () => {
+  prepararAudio();
   configurarInstalacaoPWA();
-  carregarEstruturas();
-
-  abrirAbaLateral("aba-inicio", document.querySelector(".side-tab.active"));
+  registrarServiceWorker();
+  inicializarTema();
+  await carregarEstruturas();
 });
 
-/* =========================
-   CARREGAR DADOS
-========================= */
+function prepararAudio() {
+  clickAudio = new Audio("/static/sounds/click.mp3");
+  clickAudio.volume = 0.25;
+}
+
+function tocarClique() {
+  if (!clickAudio) return;
+  try {
+    clickAudio.currentTime = 0;
+    clickAudio.play();
+  } catch (e) {
+    console.warn("Não foi possível tocar o áudio de clique.", e);
+  }
+}
+
 async function carregarEstruturas() {
   try {
     const resposta = await fetch("/api/musculos");
-    if (!resposta.ok) {
-      throw new Error("Falha ao buscar /api/musculos");
-    }
-
     estruturas = await resposta.json();
-
-    renderizarSecao("dorso");
-    renderizarSecao("torax");
-
-    if (estruturas.length > 0) {
-      atualizarResumo(estruturas[0]);
-    }
+    renderizarEstruturas();
+    mostrarToast("Estruturas carregadas com sucesso.");
   } catch (erro) {
     console.error("Erro ao carregar estruturas:", erro);
-    mostrarToast("Erro ao carregar músculos.");
+    mostrarToast("Erro ao carregar as estruturas.");
   }
 }
 
-/* =========================
-   RENDERIZAÇÃO
-========================= */
-function renderizarSecao(secao) {
-  const container = document.getElementById(`lista-${secao}`);
-  if (!container) return;
+function renderizarEstruturas() {
+  const listaDorso = document.getElementById("lista-dorso");
+  const listaTorax = document.getElementById("lista-torax");
 
-  const termo = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+  if (!listaDorso || !listaTorax) return;
 
-  const itens = estruturas.filter(item => {
-    if (item.secao !== secao) return false;
+  listaDorso.innerHTML = "";
+  listaTorax.innerHTML = "";
 
-    if (!termo) return true;
+  const termoBusca = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
 
-    return (
-      String(item.id).includes(termo) ||
-      (item.nome || "").toLowerCase().includes(termo) ||
-      (item.categoria || "").toLowerCase().includes(termo)
-    );
+  const filtradas = estruturas.filter((item) => {
+    const bateSecao = filtroSecaoAtual === "todas" || item.secao === filtroSecaoAtual;
+    const textoBase = `${item.id} ${item.nome} ${item.categoria || ""}`.toLowerCase();
+    const bateBusca = !termoBusca || textoBase.includes(termoBusca);
+    return bateSecao && bateBusca;
   });
 
-  container.innerHTML = "";
+  filtradas.forEach((item) => {
+    const card = criarCardEstrutura(item);
 
-  if (!itens.length) {
-    container.innerHTML = `<div class="viewer-empty">Nenhuma estrutura encontrada.</div>`;
+    if (item.secao === "dorso") {
+      listaDorso.appendChild(card);
+    } else if (item.secao === "torax") {
+      listaTorax.appendChild(card);
+    }
+  });
+}
+
+function criarCardEstrutura(item) {
+  const card = document.createElement("article");
+  card.className = "muscle-card";
+  card.dataset.secao = item.secao;
+  card.dataset.id = item.id;
+
+  const respostaHtml = modoProfessor
+    ? `
+      <div class="answer-row">
+        <span class="answer-label">Ação</span>
+        <div class="answer-value">${escaparHtml(item.acao || "Não preenchido.")}</div>
+      </div>
+      <div class="answer-row">
+        <span class="answer-label">Fixação proximal</span>
+        <div class="answer-value">${escaparHtml(item.fixacao_proximal || "Não preenchido.")}</div>
+      </div>
+      <div class="answer-row">
+        <span class="answer-label">Inserção</span>
+        <div class="answer-value">${escaparHtml(item.insercao || "Não preenchido.")}</div>
+      </div>
+    `
+    : `<div class="locked">Conteúdo protegido. Digite a senha do professor para liberar.</div>`;
+
+  card.innerHTML = `
+    <div class="muscle-card-top">
+      <div class="structure-id">${item.id}</div>
+      <div class="muscle-card-title">
+        <h4>${escaparHtml(item.nome)}</h4>
+        <span>${escaparHtml(item.categoria || formatarSecao(item.secao))}</span>
+      </div>
+    </div>
+
+    <div class="action-row wrap">
+      <button class="pill-btn" type="button" onclick="alternarImagem(${item.id})">Abrir imagem</button>
+      <button class="pill-btn" type="button" onclick="alternarGif(${item.id})">Abrir GIF</button>
+      <button class="pill-btn" type="button" onclick="mostrarResumo(${item.id})">Resumo</button>
+      <button class="pill-btn" type="button" onclick="alternarResposta(${item.id})">Resposta</button>
+    </div>
+
+    <div class="media-box" id="imagem-box-${item.id}">
+      ${
+        item.imagem
+          ? `<img class="img-estrutura" src="/static/${item.imagem}" crossorigin="anonymous" loading="eager" alt="Imagem de ${escaparAtributo(item.nome)}">`
+          : `<div class="locked">Sem imagem cadastrada.</div>`
+      }
+    </div>
+
+    <div class="gif-box" id="gif-box-${item.id}">
+      ${
+        item.gif
+          ? `<img class="gif-estrutura" src="/static/${item.gif}" crossorigin="anonymous" loading="eager" alt="GIF de ${escaparAtributo(item.nome)}">`
+          : `<div class="locked">Sem GIF cadastrado.</div>`
+      }
+    </div>
+
+    <div class="answer-box" id="resposta-box-${item.id}">
+      ${respostaHtml}
+    </div>
+  `;
+
+  return card;
+}
+
+function alternarImagem(id) {
+  tocarClique();
+  fecharBoxIrma("imagem", id);
+
+  const box = document.getElementById(`imagem-box-${id}`);
+  if (!box) return;
+
+  box.classList.toggle("show");
+
+  if (box.classList.contains("show")) {
+    const item = estruturas.find((e) => e.id === id);
+    atualizarViewer("imagem", item);
+  }
+}
+
+function alternarGif(id) {
+  tocarClique();
+  fecharBoxIrma("gif", id);
+
+  const box = document.getElementById(`gif-box-${id}`);
+  if (!box) return;
+
+  box.classList.toggle("show");
+
+  if (box.classList.contains("show")) {
+    const item = estruturas.find((e) => e.id === id);
+    atualizarViewer("gif", item);
+  }
+}
+
+function alternarResposta(id) {
+  tocarClique();
+
+  const box = document.getElementById(`resposta-box-${id}`);
+  if (!box) return;
+
+  if (!modoProfessor) {
+    box.classList.add("show");
+    mostrarToast("Resposta bloqueada. Ative o modo professor.");
     return;
   }
 
-  itens.forEach(item => {
-    const card = document.createElement("div");
-    card.className = "muscle-card";
+  box.classList.toggle("show");
+}
 
-    card.innerHTML = `
-      <div class="muscle-header" onclick="toggleCard(this)">
-        <div class="muscle-header-left">
-          <h3>${item.id}. ${item.nome}</h3>
-          <span class="muscle-subtitle">${item.categoria || "Sem categoria"}</span>
-        </div>
-        <span class="muscle-arrow">▼</span>
-      </div>
+function fecharBoxIrma(tipo, idAtual) {
+  const seletor = tipo === "imagem" ? `[id^="imagem-box-"]` : `[id^="gif-box-"]`;
+  const boxes = document.querySelectorAll(seletor);
 
-      <div class="muscle-content">
-        <div class="muscle-meta">
-          <span class="muscle-chip">${item.secao.toUpperCase()}</span>
-          <span class="muscle-chip">${item.categoria || "Sem categoria"}</span>
-        </div>
-
-        <div class="answer-block ${modoProfessor ? "" : "locked"}">
-          ${
-            modoProfessor
-              ? `
-                <p><strong>Ação:</strong> ${item.acao || "-"}</p>
-                <p><strong>Fixação proximal:</strong> ${item.fixacao_proximal || "-"}</p>
-                <p><strong>Inserção:</strong> ${item.insercao || "-"}</p>
-              `
-              : `
-                <p><strong>Ação:</strong> 🔒 bloqueada</p>
-                <p><strong>Fixação proximal:</strong> 🔒 bloqueada</p>
-                <p><strong>Inserção:</strong> 🔒 bloqueada</p>
-              `
-          }
-        </div>
-
-        <div class="muscle-actions">
-          <button
-            class="btn btn-primary"
-            type="button"
-            onclick="abrirImagem('${item.imagem}', '${escapeHtml(item.nome)}', ${item.id}); event.stopPropagation();"
-          >
-            Ver imagem
-          </button>
-
-          <button
-            class="btn btn-secondary"
-            type="button"
-            onclick="abrirGif('${item.gif}', '${escapeHtml(item.nome)}', ${item.id}); event.stopPropagation();"
-          >
-            Ver GIF
-          </button>
-
-          <button
-            class="btn btn-ghost"
-            type="button"
-            onclick="falarEstrutura(${item.id}); event.stopPropagation();"
-          >
-            Ouvir
-          </button>
-        </div>
-      </div>
-    `;
-
-    container.appendChild(card);
+  boxes.forEach((box) => {
+    const partes = box.id.split("-");
+    const idBox = Number(partes[partes.length - 1]);
+    if (idBox !== idAtual) {
+      box.classList.remove("show");
+    }
   });
 }
 
-function toggleCard(header) {
-  const card = header.closest(".muscle-card");
-  if (!card) return;
-
-  const content = card.querySelector(".muscle-content");
-  const arrow = card.querySelector(".muscle-arrow");
-
-  if (!content) return;
-
-  const aberto = content.classList.contains("open");
-
-  content.classList.toggle("open", !aberto);
-  card.classList.toggle("expanded", !aberto);
-
-  if (arrow) {
-    arrow.textContent = aberto ? "▼" : "▲";
-  }
-}
-
-/* =========================
-   BUSCA
-========================= */
-function filtrarEstruturas() {
-  renderizarSecao("dorso");
-  renderizarSecao("torax");
-}
-
-/* =========================
-   VISUALIZAÇÃO
-========================= */
-function abrirImagem(caminho, nome, id) {
-  const viewerEmpty = document.getElementById("viewerEmpty");
-  const viewerImage = document.getElementById("viewerImage");
-  const viewerGif = document.getElementById("viewerGif");
-
-  if (viewerEmpty) viewerEmpty.classList.add("hidden");
-
-  if (viewerGif) {
-    viewerGif.classList.add("hidden");
-    viewerGif.src = "";
-  }
-
-  if (viewerImage) {
-    viewerImage.src = `/static/${caminho}`;
-    viewerImage.alt = nome;
-    viewerImage.classList.remove("hidden");
-  }
-
-  const item = estruturas.find(e => e.id === id);
-  if (item) atualizarResumo(item);
-
+function mostrarResumo(id) {
   tocarClique();
-}
 
-function abrirGif(caminho, nome, id) {
-  const viewerEmpty = document.getElementById("viewerEmpty");
-  const viewerImage = document.getElementById("viewerImage");
-  const viewerGif = document.getElementById("viewerGif");
+  const item = estruturas.find((e) => e.id === id);
+  if (!item) return;
 
-  if (viewerEmpty) viewerEmpty.classList.add("hidden");
-
-  if (viewerImage) {
-    viewerImage.classList.add("hidden");
-    viewerImage.src = "";
-  }
-
-  if (viewerGif) {
-    viewerGif.src = `/static/${caminho}`;
-    viewerGif.alt = nome;
-    viewerGif.classList.remove("hidden");
-  }
-
-  const item = estruturas.find(e => e.id === id);
-  if (item) atualizarResumo(item);
-
-  tocarClique();
-}
-
-function atualizarResumo(item) {
   const resumo = document.getElementById("resumoEstrutura");
-  if (!resumo || !item) return;
+  if (!resumo) return;
 
+  resumo.className = "";
   resumo.innerHTML = `
-    <strong>${item.id}. ${item.nome}</strong><br>
-    <span>${item.categoria || ""}</span><br><br>
+    <div class="answer-row">
+      <span class="answer-label">Estrutura</span>
+      <div class="answer-value">${escaparHtml(item.nome)}</div>
+    </div>
+
+    <div class="answer-row">
+      <span class="answer-label">Seção</span>
+      <div class="answer-value">${escaparHtml(formatarSecao(item.secao))}</div>
+    </div>
+
+    <div class="answer-row">
+      <span class="answer-label">Categoria</span>
+      <div class="answer-value">${escaparHtml(item.categoria || "Não informada")}</div>
+    </div>
+
     ${
       modoProfessor
         ? `
-          <strong>Ação:</strong> ${item.acao || "-"}<br>
-          <strong>Fixação proximal:</strong> ${item.fixacao_proximal || "-"}<br>
-          <strong>Inserção:</strong> ${item.insercao || "-"}
+          <div class="answer-row">
+            <span class="answer-label">Ação</span>
+            <div class="answer-value">${escaparHtml(item.acao || "Não preenchido.")}</div>
+          </div>
+          <div class="answer-row">
+            <span class="answer-label">Fixação proximal</span>
+            <div class="answer-value">${escaparHtml(item.fixacao_proximal || "Não preenchido.")}</div>
+          </div>
+          <div class="answer-row">
+            <span class="answer-label">Inserção</span>
+            <div class="answer-value">${escaparHtml(item.insercao || "Não preenchido.")}</div>
+          </div>
         `
-        : `Ative o modo professor para visualizar ação, fixação proximal e inserção.`
+        : `
+          <div class="locked" style="margin-top:10px;">
+            As respostas anatômicas ficam visíveis apenas no modo professor.
+          </div>
+        `
     }
   `;
 }
 
-/* =========================
-   MODO PROFESSOR
-========================= */
+function atualizarViewer(tipo, item) {
+  if (!item) return;
+
+  const viewerEmpty = document.getElementById("viewerEmpty");
+  const viewerImage = document.getElementById("viewerImage");
+  const viewerGif = document.getElementById("viewerGif");
+
+  if (!viewerEmpty || !viewerImage || !viewerGif) return;
+
+  viewerEmpty.classList.add("hidden");
+  viewerImage.classList.add("hidden");
+  viewerGif.classList.add("hidden");
+
+  if (tipo === "imagem" && item.imagem) {
+    viewerImage.src = `/static/${item.imagem}`;
+    viewerImage.alt = `Imagem ampliada de ${item.nome}`;
+    viewerImage.classList.remove("hidden");
+  } else if (tipo === "gif" && item.gif) {
+    viewerGif.src = `/static/${item.gif}`;
+    viewerGif.alt = `GIF ampliado de ${item.nome}`;
+    viewerGif.classList.remove("hidden");
+  } else {
+    viewerEmpty.textContent = "Recurso visual não cadastrado.";
+    viewerEmpty.classList.remove("hidden");
+  }
+
+  mostrarResumo(item.id);
+}
+
 function ativarModoProfessor() {
+  tocarClique();
+
   const senha = document.getElementById("senhaProfessor")?.value || "";
   const status = document.getElementById("profStatus");
 
   if (senha === "pinheiro") {
     modoProfessor = true;
-    if (status) status.textContent = "Modo professor liberado.";
-    renderizarSecao("dorso");
-    renderizarSecao("torax");
-    mostrarToast("Modo professor ativado.");
+    if (status) status.textContent = "Modo professor ativado.";
+    const campo = document.getElementById("senhaProfessor");
+    if (campo) campo.value = "";
+    renderizarEstruturas();
+    mostrarToast("Modo professor liberado.");
   } else {
+    modoProfessor = false;
     if (status) status.textContent = "Senha incorreta.";
     mostrarToast("Senha incorreta.");
   }
 }
 
 function desativarModoProfessor() {
+  tocarClique();
   modoProfessor = false;
+
   const status = document.getElementById("profStatus");
   if (status) status.textContent = "Modo professor bloqueado.";
-  renderizarSecao("dorso");
-  renderizarSecao("torax");
+
+  renderizarEstruturas();
   mostrarToast("Modo professor bloqueado.");
 }
 
-/* =========================
-   TEMA
-========================= */
-function alternarTema() {
-  const html = document.documentElement;
-  const atual = html.getAttribute("data-theme") || "dark";
-  const novo = atual === "dark" ? "light" : "dark";
-
-  html.setAttribute("data-theme", novo);
-  document.body.setAttribute("data-theme", novo);
-  localStorage.setItem("temaAtlas", novo);
-
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) {
-    themeMeta.setAttribute("content", novo === "dark" ? "#0f172a" : "#e2e8f0");
-  }
+function filtrarEstruturas() {
+  renderizarEstruturas();
 }
 
-function aplicarTemaSalvo() {
-  const salvo = localStorage.getItem("temaAtlas") || "dark";
-
-  document.documentElement.setAttribute("data-theme", salvo);
-  document.body.setAttribute("data-theme", salvo);
-
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) {
-    themeMeta.setAttribute("content", salvo === "dark" ? "#0f172a" : "#e2e8f0");
-  }
+function formatarSecao(secao) {
+  if (secao === "dorso") return "Dorso";
+  if (secao === "torax") return "Tórax";
+  return secao || "";
 }
 
-/* =========================
-   ABAS LATERAIS
-========================= */
 function abrirAbaLateral(idAba, botao) {
-  document.querySelectorAll(".content-pane").forEach(pane => {
+  tocarClique();
+
+  document.querySelectorAll(".content-pane").forEach((pane) => {
     pane.classList.remove("active");
   });
 
-  document.querySelectorAll(".side-tab").forEach(tab => {
+  document.querySelectorAll(".side-tab").forEach((tab) => {
     tab.classList.remove("active");
   });
 
   const aba = document.getElementById(idAba);
   if (aba) aba.classList.add("active");
 
-  if (botao) {
-    botao.classList.add("active");
-  } else {
-    const btn = [...document.querySelectorAll(".side-tab")].find(el =>
-      el.getAttribute("onclick")?.includes(idAba)
-    );
-    if (btn) btn.classList.add("active");
-  }
+  if (botao) botao.classList.add("active");
 
   fecharMenuMobile();
 }
 
-/* =========================
-   MENU MOBILE
-========================= */
 function abrirMenuMobile() {
   const sidebar = document.getElementById("sidebar");
   const overlay = document.getElementById("mobileOverlay");
 
-  sidebar?.classList.add("open");
-  overlay?.classList.add("show");
+  if (sidebar) sidebar.classList.add("open");
+  if (overlay) overlay.classList.add("show");
 }
 
 function fecharMenuMobile() {
   const sidebar = document.getElementById("sidebar");
   const overlay = document.getElementById("mobileOverlay");
 
-  sidebar?.classList.remove("open");
-  overlay?.classList.remove("show");
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.remove("show");
 }
 
-/* =========================
-   PDF
-========================= */
+function alternarTema() {
+  tocarClique();
+
+  const body = document.body;
+  body.classList.toggle("light-theme");
+
+  const temaAtual = body.classList.contains("light-theme") ? "light" : "dark";
+  localStorage.setItem("uemTemaAtlas", temaAtual);
+
+  mostrarToast(temaAtual === "light" ? "Tema claro ativado." : "Tema escuro ativado.");
+}
+
+function inicializarTema() {
+  const temaSalvo = localStorage.getItem("uemTemaAtlas");
+  if (temaSalvo === "light") {
+    document.body.classList.add("light-theme");
+  }
+}
+
 async function gerarPDF(idSecao, nomeArquivo) {
   tocarClique();
 
@@ -345,23 +373,23 @@ async function gerarPDF(idSecao, nomeArquivo) {
     return;
   }
 
+  let estadosOriginais = [];
+
   try {
     mostrarToast("Preparando PDF...");
 
     elemento.classList.add("exportando-pdf");
 
     const caixas = elemento.querySelectorAll(".media-box, .gif-box, .answer-box");
-    const estadosOriginais = [];
+    estadosOriginais = Array.from(caixas).map((box) => ({
+      elemento: box,
+      classeShow: box.classList.contains("show")
+    }));
 
-    caixas.forEach((box) => {
-      estadosOriginais.push({
-        elemento: box,
-        classeShow: box.classList.contains("show")
-      });
-      box.classList.add("show");
-    });
+    caixas.forEach((box) => box.classList.add("show"));
 
     const imagens = elemento.querySelectorAll("img");
+
     await Promise.all(
       Array.from(imagens).map((img) => {
         return new Promise((resolve) => {
@@ -384,14 +412,6 @@ async function gerarPDF(idSecao, nomeArquivo) {
       backgroundColor: "#0b1f33",
       logging: false,
       imageTimeout: 20000
-    });
-
-    elemento.classList.remove("exportando-pdf");
-
-    estadosOriginais.forEach((item) => {
-      if (!item.classeShow) {
-        item.elemento.classList.remove("show");
-      }
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
@@ -430,61 +450,37 @@ async function gerarPDF(idSecao, nomeArquivo) {
     mostrarToast("Erro ao gerar o PDF.");
   } finally {
     elemento.classList.remove("exportando-pdf");
+
+    estadosOriginais.forEach((item) => {
+      if (!item.classeShow) {
+        item.elemento.classList.remove("show");
+      }
+    });
   }
 }
 
-/* =========================
-   ÁUDIO
-========================= */
-function falarEstrutura(id) {
-  const item = estruturas.find(e => e.id === id);
-  if (!item || !("speechSynthesis" in window)) return;
-
-  const texto = modoProfessor
-    ? `${item.nome}. Ação: ${item.acao || ""}. Fixação proximal: ${item.fixacao_proximal || ""}. Inserção: ${item.insercao || ""}.`
-    : `${item.nome}. Ative o modo professor para ouvir as respostas completas.`;
-
-  window.speechSynthesis.cancel();
-  const fala = new SpeechSynthesisUtterance(texto);
-  fala.lang = "pt-BR";
-  window.speechSynthesis.speak(fala);
-}
-
-function tocarClique() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(650, ctx.currentTime);
-    gain.gain.setValueAtTime(0.03, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.08);
-  } catch (e) {}
-}
-
-/* =========================
-   PWA
-========================= */
 function configurarInstalacaoPWA() {
   const installBtn = document.getElementById("installBtn");
   if (!installBtn) return;
 
   installBtn.addEventListener("click", async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
+    tocarClique();
+
+    if (!deferredPrompt) {
+      mostrarToast("Abra no navegador compatível para instalar o app.");
       return;
     }
 
-    mostrarToast("Se não abrir a instalação, use o menu do navegador e toque em 'Instalar app' ou 'Adicionar à tela inicial'.");
+    deferredPrompt.prompt();
+
+    const escolha = await deferredPrompt.userChoice;
+    if (escolha.outcome === "accepted") {
+      mostrarToast("Instalação iniciada.");
+    } else {
+      mostrarToast("Instalação cancelada.");
+    }
+
+    deferredPrompt = null;
   });
 
   window.addEventListener("beforeinstallprompt", (e) => {
@@ -494,14 +490,56 @@ function configurarInstalacaoPWA() {
   });
 
   window.addEventListener("appinstalled", () => {
-    deferredPrompt = null;
     mostrarToast("App instalado com sucesso.");
+    deferredPrompt = null;
   });
 }
 
-/* =========================
-   TOAST
-========================= */
+function registrarServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js")
+      .then(() => {
+        console.log("Service Worker registrado com sucesso.");
+      })
+      .catch((erro) => {
+        console.warn("Falha ao registrar Service Worker:", erro);
+      });
+  }
+}
+
+function aplicarFotoNo3D() {
+  tocarClique();
+
+  const input = document.getElementById("foto3d");
+  const preview = document.getElementById("previewFoto3d");
+
+  if (!input || !input.files || !input.files[0]) {
+    mostrarToast("Selecione uma foto primeiro.");
+    return;
+  }
+
+  const arquivo = input.files[0];
+  const leitor = new FileReader();
+
+  leitor.onload = function (evento) {
+    const dataUrl = evento.target.result;
+
+    if (preview) {
+      preview.src = dataUrl;
+      preview.classList.add("show");
+    }
+
+    if (typeof window.aplicarTextura3D === "function") {
+      window.aplicarTextura3D(dataUrl);
+      mostrarToast("Foto aplicada no modelo 3D.");
+    } else {
+      mostrarToast("Área 3D ainda não carregada.");
+    }
+  };
+
+  leitor.readAsDataURL(arquivo);
+}
+
 function mostrarToast(texto) {
   const toast = document.getElementById("toast");
   if (!toast) return;
@@ -509,15 +547,13 @@ function mostrarToast(texto) {
   toast.textContent = texto;
   toast.classList.add("show");
 
-  setTimeout(() => {
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => {
     toast.classList.remove("show");
-  }, 2200);
+  }, 2400);
 }
 
-/* =========================
-   UTIL
-========================= */
-function escapeHtml(texto) {
+function escaparHtml(texto) {
   return String(texto)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -526,16 +562,6 @@ function escapeHtml(texto) {
     .replaceAll("'", "&#039;");
 }
 
-/* =========================
-   SERVICE WORKER
-========================= */
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      await navigator.serviceWorker.register("/sw.js");
-      console.log("Service Worker registrado com sucesso.");
-    } catch (erro) {
-      console.error("Erro ao registrar Service Worker:", erro);
-    }
-  });
+function escaparAtributo(texto) {
+  return escaparHtml(texto);
 }
