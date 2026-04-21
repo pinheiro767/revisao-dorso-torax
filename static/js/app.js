@@ -338,49 +338,57 @@ function fecharMenuMobile() {
 ========================= */
 async function gerarPDF(idElemento, nomeArquivo) {
   const elemento = document.getElementById(idElemento);
+
   if (!elemento) {
     mostrarToast("Seção não encontrada.");
     return;
   }
 
   try {
-    mostrarToast("Gerando PDF...");
+    mostrarToast("Preparando PDF...");
+
+    // abre a aba antes de capturar
+    abrirAbaLateral(idElemento);
+
+    // espera a interface renderizar
+    await new Promise(resolve => setTimeout(resolve, 400));
 
     const canvas = await html2canvas(elemento, {
       scale: 2,
       useCORS: true,
-      backgroundColor: null
+      backgroundColor: "#ffffff",
+      logging: false
     });
 
     const imgData = canvas.toDataURL("image/png");
     const { jsPDF } = window.jspdf;
-
     const pdf = new jsPDF("p", "mm", "a4");
+
     const pageWidth = 210;
     const pageHeight = 297;
+    const margin = 10;
 
-    const imgWidth = pageWidth - 20;
+    const imgWidth = pageWidth - margin * 2;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    let y = 10;
     let heightLeft = imgHeight;
-    let position = 0;
+    let position = margin;
 
-    pdf.addImage(imgData, "PNG", 10, y, imgWidth, imgHeight);
-    heightLeft -= (pageHeight - 20);
+    pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+    heightLeft -= (pageHeight - margin * 2);
 
     while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
+      position = heightLeft - imgHeight + margin;
       pdf.addPage();
-      pdf.addImage(imgData, "PNG", 10, position + 10, imgWidth, imgHeight);
-      heightLeft -= (pageHeight - 20);
+      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - margin * 2);
     }
 
     pdf.save(nomeArquivo);
     mostrarToast("PDF gerado com sucesso.");
   } catch (erro) {
     console.error("Erro ao gerar PDF:", erro);
-    mostrarToast("Erro ao gerar PDF.");
+    mostrarToast("Erro ao gerar PDF. Veja o console.");
   }
 }
 
