@@ -667,3 +667,15 @@ img{
 .muscle-card.expanded .muscle-header {
   border-bottom: 1px solid rgba(255,255,255,.08);
 }
+
+.exportando-pdf .media-box,
+.exportando-pdf .gif-box,
+.exportando-pdf .answer-box{
+  display:block !important;
+}
+
+.exportando-pdf img{
+  display:block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}
