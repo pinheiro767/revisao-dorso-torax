@@ -347,10 +347,7 @@ async function gerarPDF(idElemento, nomeArquivo) {
   try {
     mostrarToast("Preparando PDF...");
 
-    // abre a aba antes de capturar
     abrirAbaLateral(idElemento);
-
-    // espera a interface renderizar
     await new Promise(resolve => setTimeout(resolve, 400));
 
     const canvas = await html2canvas(elemento, {
@@ -451,6 +448,11 @@ function configurarInstalacaoPWA() {
     deferredPrompt = e;
     installBtn.style.display = "inline-flex";
   });
+
+  window.addEventListener("appinstalled", () => {
+    deferredPrompt = null;
+    mostrarToast("App instalado com sucesso.");
+  });
 }
 
 /* =========================
@@ -480,17 +482,9 @@ function escapeHtml(texto) {
     .replaceAll("'", "&#039;");
 }
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      await navigator.serviceWorker.register("/sw.js");
-      console.log("Service Worker registrado com sucesso.");
-    } catch (erro) {
-      console.error("Erro ao registrar Service Worker:", erro);
-    }
-  });
-}
-
+/* =========================
+   SERVICE WORKER
+========================= */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
