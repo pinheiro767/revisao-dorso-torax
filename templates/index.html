@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#0f172a">
   <title>UEM • Revisão Dorso e Tórax</title>
 
- <link rel="manifest" href="/manifest.json">
-<link rel="stylesheet" href="/static/css/style.css">
-<link rel="icon" type="image/png" href="/static/images/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/images/icon-192.png">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 </head>
 <body>
   <div class="mobile-overlay" id="mobileOverlay" onclick="fecharMenuMobile()"></div>
@@ -26,7 +26,9 @@
           <p>Curso de Medicina</p>
         </div>
 
-        <button class="icon-btn mobile-only" type="button" onclick="fecharMenuMobile()">✕</button>
+        <button class="icon-btn mobile-only" type="button" onclick="fecharMenuMobile()" aria-label="Fechar menu">
+          ✕
+        </button>
       </div>
 
       <nav class="side-nav">
@@ -56,14 +58,19 @@
       </nav>
 
       <div class="sidebar-bottom">
-        <button class="theme-btn" type="button" onclick="alternarTema()">🌙 / ☀️ Tema</button>
+        <button class="theme-btn" type="button" onclick="alternarTema()">
+          🌙 / ☀️ Tema
+        </button>
       </div>
     </aside>
 
     <main class="main-area">
       <header class="topbar">
         <div class="topbar-left">
-          <button class="icon-btn mobile-only" type="button" onclick="abrirMenuMobile()">☰</button>
+          <button class="icon-btn mobile-only" type="button" onclick="abrirMenuMobile()" aria-label="Abrir menu">
+            ☰
+          </button>
+
           <div>
             <small>Universidade Estadual de Maringá</small>
             <h2>Atlas Interativo • Dorso e Tórax</h2>
@@ -84,6 +91,7 @@
               Navegue por dorso e tórax com visualização em tempo real, imagens ocultas,
               GIFs, PDF por seção, modo professor e visual 3D experimental.
             </p>
+
             <div class="hero-tags">
               <span>PWA</span>
               <span>Responsivo</span>
@@ -110,6 +118,7 @@
           <h3>Dorso</h3>
           <p>Extrínsecos superficiais, intermediários e intrínsecos.</p>
         </div>
+
         <div class="muscle-panels" id="lista-dorso"></div>
       </section>
 
@@ -118,6 +127,7 @@
           <h3>Tórax</h3>
           <p>Toracoapendiculares e músculos verdadeiros do tórax.</p>
         </div>
+
         <div class="muscle-panels" id="lista-torax"></div>
       </section>
 
@@ -127,9 +137,18 @@
           <p>Digite a senha para liberar ação, fixação proximal e inserção.</p>
 
           <div class="action-row">
-            <input type="password" id="senhaProfessor" class="input" placeholder="Digite a senha">
-            <button class="pill-btn primary" type="button" onclick="ativarModoProfessor()">Liberar</button>
-            <button class="pill-btn danger" type="button" onclick="desativarModoProfessor()">Bloquear</button>
+            <input
+              type="password"
+              id="senhaProfessor"
+              class="input"
+              placeholder="Digite a senha"
+            >
+            <button class="pill-btn primary" type="button" onclick="ativarModoProfessor()">
+              Liberar
+            </button>
+            <button class="pill-btn danger" type="button" onclick="desativarModoProfessor()">
+              Bloquear
+            </button>
           </div>
 
           <div class="status-box" id="profStatus">Modo professor bloqueado.</div>
@@ -139,9 +158,14 @@
       <section class="content-pane" id="aba-pdf">
         <section class="panel-card">
           <h3>Gerar PDF por seção</h3>
+
           <div class="action-row wrap">
-            <button class="pill-btn" type="button" onclick="gerarPDF('aba-dorso','Revisao_Dorso.pdf')">Gerar PDF Dorso</button>
-            <button class="pill-btn" type="button" onclick="gerarPDF('aba-torax','Revisao_Torax.pdf')">Gerar PDF Tórax</button>
+            <button class="pill-btn" type="button" onclick="gerarPDF('aba-dorso','Revisao_Dorso.pdf')">
+              Gerar PDF Dorso
+            </button>
+            <button class="pill-btn" type="button" onclick="gerarPDF('aba-torax','Revisao_Torax.pdf')">
+              Gerar PDF Tórax
+            </button>
           </div>
         </section>
       </section>
@@ -154,8 +178,16 @@
           </p>
 
           <div class="action-row wrap">
-            <input type="file" id="foto3d" class="input" accept="image/*">
-            <button class="pill-btn primary" type="button" onclick="aplicarFotoNo3D()">Aplicar foto no 3D</button>
+            <input
+              type="file"
+              id="foto3d"
+              class="input"
+              accept="image/*"
+              capture="environment"
+            >
+            <button class="pill-btn primary" type="button" onclick="aplicarFotoNo3D()">
+              Aplicar foto no 3D
+            </button>
           </div>
 
           <img id="previewFoto3d" class="capture-preview" alt="Pré-visualização da foto">
