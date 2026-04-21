@@ -714,3 +714,143 @@ img{
     linear-gradient(180deg, #091523, #0d2236);
   border:1px solid rgba(255,255,255,.08);
 }
+
+:root{
+  --bg-main:#081420;
+  --bg-soft:#0f1c2b;
+  --bg-card:#122235;
+  --bg-card-2:#16293f;
+  --text-main:#ecf3fb;
+  --text-soft:#b7c7d9;
+  --line:rgba(255,255,255,.08);
+  --accent:#5fa8ff;
+  --accent-2:#7ef0d1;
+  --danger:#ff6b81;
+  --shadow:0 16px 42px rgba(0,0,0,.28);
+}
+
+body{
+  background:linear-gradient(135deg, #081420, #0d1d2f 45%, #122844);
+  color:var(--text-main);
+  transition:background .25s ease, color .25s ease;
+}
+
+body.light-theme{
+  --bg-main:#f3f7fb;
+  --bg-soft:#ffffff;
+  --bg-card:#ffffff;
+  --bg-card-2:#f7fbff;
+  --text-main:#152433;
+  --text-soft:#5c7187;
+  --line:rgba(20,40,60,.10);
+  --accent:#246bdb;
+  --accent-2:#0ea5a0;
+  --danger:#e54861;
+  --shadow:0 16px 42px rgba(22,35,52,.10);
+  background:linear-gradient(135deg, #eef4fa, #f7fbff 45%, #eef6ff);
+  color:var(--text-main);
+}
+
+.sidebar,
+.topbar,
+.panel-card,
+.hero-card,
+.footer-card,
+.muscle-card,
+.status-box{
+  background:var(--bg-card);
+  color:var(--text-main);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+}
+
+.brand-block p,
+.topbar-left small,
+.section-header p,
+.hero-text p,
+.viewer-empty,
+#resumoEstrutura,
+.status-box{
+  color:var(--text-soft);
+}
+
+.input{
+  background:var(--bg-card-2);
+  color:var(--text-main);
+  border:1px solid var(--line);
+}
+
+.input::placeholder{
+  color:var(--text-soft);
+}
+
+.side-tab,
+.pill-btn,
+.theme-btn,
+.icon-btn{
+  border:1px solid var(--line);
+}
+
+.side-tab{
+  background:transparent;
+  color:var(--text-main);
+}
+
+.side-tab.active{
+  background:linear-gradient(135deg, rgba(95,168,255,.18), rgba(126,240,209,.12));
+}
+
+.pill-btn,
+.theme-btn,
+.icon-btn{
+  background:var(--bg-card-2);
+  color:var(--text-main);
+}
+
+.pill-btn.primary{
+  background:linear-gradient(135deg, var(--accent), #3b82f6);
+  color:#fff;
+}
+
+.pill-btn.danger{
+  background:linear-gradient(135deg, var(--danger), #e11d48);
+  color:#fff;
+}
+
+.action-row .pill-btn:hover,
+.theme-btn:hover,
+.icon-btn:hover,
+.side-tab:hover{
+  filter:brightness(1.04);
+}
+
+.answer-label{
+  color:var(--accent-2);
+}
+
+.answer-value,
+.muscle-card-title span,
+.footer-card p,
+.footer-card strong,
+.section-header h3,
+.hero-text h3,
+.brand-block h1,
+.topbar-left h2{
+  color:var(--text-main);
+}
+
+.locked{
+  background:rgba(255,255,255,.03);
+  border:1px dashed var(--line);
+  color:var(--text-soft);
+}
+
+body.light-theme .locked{
+  background:rgba(20,40,60,.03);
+}
+
+body.light-theme #canvas3d{
+  background:
+    radial-gradient(circle at 20% 20%, rgba(36,107,219,.10), transparent 24%),
+    linear-gradient(180deg, #edf4fb, #dfeaf8);
+}
