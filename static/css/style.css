@@ -854,3 +854,23 @@ body.light-theme #canvas3d{
     radial-gradient(circle at 20% 20%, rgba(36,107,219,.10), transparent 24%),
     linear-gradient(180deg, #edf4fb, #dfeaf8);
 }
+
+.exportando-pdf .media-box,
+.exportando-pdf .gif-box,
+.exportando-pdf .answer-box{
+  display:block !important;
+}
+
+.exportando-pdf img{
+  display:block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}
+
+.content-pane{
+  display:none;
+}
+
+.content-pane.active{
+  display:block;
+}
