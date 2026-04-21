@@ -679,3 +679,15 @@ img{
   opacity:1 !important;
   visibility:visible !important;
 }
+
+.exportando-pdf .media-box,
+.exportando-pdf .gif-box,
+.exportando-pdf .answer-box{
+  display:block !important;
+}
+
+.exportando-pdf img{
+  display:block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}
