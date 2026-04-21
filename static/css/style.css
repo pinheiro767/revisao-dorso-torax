@@ -691,3 +691,26 @@ img{
   opacity:1 !important;
   visibility:visible !important;
 }
+
+.exportando-pdf .media-box,
+.exportando-pdf .gif-box,
+.exportando-pdf .answer-box{
+  display:block !important;
+}
+
+.exportando-pdf img{
+  display:block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}
+
+#canvas3d{
+  width:100%;
+  height:380px;
+  display:block;
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(96,165,250,.15), transparent 24%),
+    linear-gradient(180deg, #091523, #0d2236);
+  border:1px solid rgba(255,255,255,.08);
+}
